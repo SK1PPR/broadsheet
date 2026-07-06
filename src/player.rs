@@ -103,9 +103,14 @@ pub async fn run_loop(movie: Movie) {
     // ---- live preview ----
     let mut t: f32 = 0.0;
     let mut paused = false;
+    let mut fullscreen = false;
     let frame_dt = 1.0 / opts.fps as f32;
 
     loop {
+        if is_key_pressed(KeyCode::F) {
+            fullscreen = !fullscreen;
+            set_fullscreen(fullscreen);
+        }
         if is_key_pressed(KeyCode::Space) {
             paused = !paused;
         }
@@ -138,10 +143,22 @@ pub async fn run_loop(movie: Movie) {
             }
         }
 
-        // scrub bar (physical pixels)
+        // fit the (w*s, h*s) canvas into whatever the window/screen is:
+        // scale to fit, centred, letterboxed. fit == 1.0 in a normal window.
         let (pw, ph) = (w * s, h * s);
+        let (sw, sh) = (screen_width(), screen_height());
+        let fit = (sw / pw).min(sh / ph);
+        let cam = Camera2D {
+            target: vec2(pw / 2.0, ph / 2.0),
+            zoom: vec2(2.0 * fit / sw, -2.0 * fit / sh),
+            ..Default::default()
+        };
+        set_camera(&cam);
+
+        // scrub bar (canvas coordinates; mouse mapped through the camera)
         let bar_y = ph - 26.0;
-        let (mx, my) = mouse_position();
+        let m_logical = cam.screen_to_world(vec2(mouse_position().0, mouse_position().1));
+        let (mx, my) = (m_logical.x, m_logical.y);
         if is_mouse_button_down(MouseButton::Left) && my >= bar_y {
             paused = true;
             t = (mx / pw).clamp(0.0, 1.0) * timeline.dur;

@@ -24,6 +24,7 @@ Live transport controls (for lining narration up with beats):
 | `←` `→` | step one frame |
 | `,` `.` | jump ±1 s |
 | `1`–`9` | jump to section markers |
+| `F` | toggle fullscreen (fit-to-screen, letterboxed) |
 | `R` | restart |
 | drag bottom bar | scrub |
 
