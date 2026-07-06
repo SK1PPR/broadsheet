@@ -21,6 +21,7 @@ enum Verb {
     Shake(String),
     GrowTo(String, Vec2),
     SetText(String, String),
+    TraceTo(String, f32),
 }
 
 impl Verb {
@@ -31,6 +32,7 @@ impl Verb {
             Verb::Pulse(_) => 0.5,
             Verb::Shake(_) => 0.45,
             Verb::SetText(..) => 0.4,
+            Verb::TraceTo(..) => 0.8,
             _ => 0.5,
         }
     }
@@ -129,6 +131,34 @@ impl ActBuilder {
     /// Crossfade a text entity to new content (fade out, swap, fade in).
     pub fn set_text(self, id: &str, text: &str) -> Self {
         self.verb(Verb::SetText(id.into(), text.into()))
+    }
+
+    /// Draw-on: trace a stroked shape's path/outline from its current
+    /// progress to fully drawn. Declare the entity `.untraced()` first.
+    pub fn trace_in(self, id: &str) -> Self {
+        self.verb(Verb::TraceTo(id.into(), 1.0))
+    }
+
+    /// Reverse of [`trace_in`](Self::trace_in): erase back to nothing.
+    pub fn trace_out(self, id: &str) -> Self {
+        self.verb(Verb::TraceTo(id.into(), 0.0))
+    }
+
+    /// Typewriter: reveal a text entity character by character. Same track
+    /// as `trace_in` but defaults to linear easing.
+    pub fn type_in(mut self, id: &str) -> Self {
+        self.easing = Easing::Linear;
+        self.verb(Verb::TraceTo(id.into(), 1.0)).dur(1.5)
+    }
+
+    /// Pan the camera centre to `pos` (the camera is entity `"__cam"`).
+    pub fn cam_to(self, pos: Vec2) -> Self {
+        self.verb(Verb::MoveTo(crate::movie::CAMERA_ID.into(), pos))
+    }
+
+    /// Zoom the camera to factor `z` (1.0 = whole canvas).
+    pub fn cam_zoom(self, z: f32) -> Self {
+        self.verb(Verb::ScaleTo(crate::movie::CAMERA_ID.into(), z))
     }
 
     // ---- tuning --------------------------------------------------------
@@ -298,6 +328,10 @@ fn build_clip(b: ActBuilder) -> Clip {
                 e,
             ));
         }
+        Verb::TraceTo(id, f) => {
+            clip.tracks
+                .push(track(&id, Prop::Trace, TargetValue::Abs(Value::F(f)), 0.0, d, e));
+        }
         Verb::SetText(id, text) => {
             clip.tracks.push(track(
                 &id,
@@ -336,6 +370,31 @@ pub fn flash(id: &str) -> ActBuilder {
     act().highlight(id, style::ACCENT)
 }
 
+/// One clip per id from the same recipe, all in parallel. Pairs with
+/// [`crate::movie::Movie::tagged`]:
+///
+/// ```ignore
+/// m.play(all(&m.tagged("bits"), |id| act().fade_out(id).dur(0.4)));
+/// ```
+pub fn all<F>(ids: &[String], f: F) -> Clip
+where
+    F: Fn(&str) -> ActBuilder,
+{
+    Clip::par(ids.iter().map(|id| f(id).into()).collect())
+}
+
+/// Run clips in parallel, each starting `delay` seconds after the previous —
+/// the cascade effect. Also available as `stagger![delay; a, b, c]`.
+pub fn stagger(delay: f32, clips: Vec<Clip>) -> Clip {
+    Clip::par(
+        clips
+            .into_iter()
+            .enumerate()
+            .map(|(i, c)| c.shift(delay * i as f32))
+            .collect(),
+    )
+}
+
 /// Run clips **one after another**. Accepts anything `Into<Clip>`
 /// (acts, `wait(s)`, nested `seq!`/`par!`).
 #[macro_export]
@@ -350,5 +409,14 @@ macro_rules! seq {
 macro_rules! par {
     ($($c:expr),* $(,)?) => {
         $crate::timeline::Clip::par(vec![$(::std::convert::Into::<$crate::timeline::Clip>::into($c)),*])
+    };
+}
+
+/// Cascade: each clip starts `delay` after the previous.
+/// `stagger![0.05; a, b, c]`.
+#[macro_export]
+macro_rules! stagger {
+    ($d:expr; $($c:expr),* $(,)?) => {
+        $crate::animate::stagger($d, vec![$(::std::convert::Into::<$crate::timeline::Clip>::into($c)),*])
     };
 }

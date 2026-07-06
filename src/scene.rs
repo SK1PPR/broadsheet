@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 use macroquad::prelude::{Color, Vec2};
 
-use crate::primitives::{Entity, FontKind, Shape, StrokeStyle};
+use crate::primitives::{Align, Entity, FontKind, Shape, StrokeStyle};
 use crate::style;
 
 /// An id-addressed collection of entities. This is the *base* state of the
@@ -119,6 +119,31 @@ impl<'a> SceneBuilder<'a> {
         self.push(Entity::new(id, Shape::Arrow { to }, from, style::INK))
     }
 
+    /// Quadratic bézier from `from` to `to`, bowing sideways by `bend`
+    /// pixels (positive = left of travel direction). Reveal with `trace_in`.
+    pub fn curve(&mut self, id: &str, from: Vec2, to: Vec2, bend: f32) -> &mut Self {
+        let mid = (from + to) / 2.0;
+        let d = to - from;
+        let len = d.length().max(1e-3);
+        let perp = Vec2::new(-d.y, d.x) / len;
+        let ctrl = mid + perp * bend;
+        self.push(Entity::new(
+            id,
+            Shape::Curve { ctrl, to, arrow: false },
+            from,
+            style::INK,
+        ))
+    }
+
+    /// Curved arrow: [`curve`](Self::curve) with a head at `to`.
+    pub fn curve_arrow(&mut self, id: &str, from: Vec2, to: Vec2, bend: f32) -> &mut Self {
+        self.curve(id, from, to, bend);
+        if let Shape::Curve { arrow, .. } = &mut self.last_mut().shape {
+            *arrow = true;
+        }
+        self
+    }
+
     /// Polygon with absolute points. Animate its `pos` to move it as a unit.
     pub fn polygon(&mut self, id: &str, pts: Vec<Vec2>) -> &mut Self {
         let mut e = Entity::new(id, Shape::Polygon { pts }, Vec2::ZERO, style::PAPER);
@@ -142,6 +167,56 @@ impl<'a> SceneBuilder<'a> {
             pos,
             style::INK,
         ))
+    }
+
+    /// A row of `n` cells centred on `center`: rects `{prefix}{i}` (with
+    /// `.label` children showing `labels[i]`, default empty) and faded index
+    /// digits underneath. The bread and butter of bit arrays, hash tables
+    /// and ring buffers. All cells carry tag `prefix`.
+    pub fn cells(
+        &mut self,
+        prefix: &str,
+        n: usize,
+        center: Vec2,
+        cell: Vec2,
+        gap: f32,
+        labels: Option<&[&str]>,
+    ) -> &mut Self {
+        let stride = cell.x + gap;
+        let x0 = center.x - stride * (n as f32 - 1.0) / 2.0;
+        for i in 0..n {
+            let id = format!("{prefix}{i}");
+            let pos = Vec2::new(x0 + stride * i as f32, center.y);
+            self.rect(&id, pos, cell.x, cell.y)
+                .color(style::PAPER_SHADE)
+                .outline_color(style::INK)
+                .stroke(2.0)
+                .tag(prefix)
+                .label(labels.map_or("", |l| l[i]));
+            self.text(&format!("{id}.idx"), Vec2::ZERO, &i.to_string())
+                .size(14.0)
+                .color(style::FADED)
+                .follow(&id, Vec2::new(0.0, cell.y / 2.0 + 20.0));
+        }
+        self
+    }
+
+    /// A left-aligned monospace code block: one text entity per line, ids
+    /// `{id}.line{i}`, all tagged `id` (so `all(&m.tagged(id), ...)` fades
+    /// the whole block). Highlight a line with e.g.
+    /// `act().highlight("code.line2", ACCENT)`.
+    pub fn code_block(&mut self, id: &str, pos: Vec2, lines: &[&str], size: f32) -> &mut Self {
+        for (i, line) in lines.iter().enumerate() {
+            self.text(
+                &format!("{id}.line{i}"),
+                Vec2::new(pos.x, pos.y + size * 1.6 * i as f32),
+                line,
+            )
+            .size(size)
+            .left()
+            .tag(id);
+        }
+        self
     }
 
     // ---- modifiers (apply to the last shape added) ---------------------
@@ -231,6 +306,33 @@ impl<'a> SceneBuilder<'a> {
         self
     }
 
+    /// Left-align this text entity on its position.
+    pub fn left(&mut self) -> &mut Self {
+        self.last_mut().align = Align::Left;
+        self
+    }
+
+    /// Start with nothing drawn (trace 0) — reveal with `trace_in`
+    /// (stroked shapes) or `type_in` (text).
+    pub fn untraced(&mut self) -> &mut Self {
+        self.last_mut().trace = 0.0;
+        self
+    }
+
+    /// Add a group tag; address the group with `Movie::tagged` + `all(...)`.
+    pub fn tag(&mut self, tag: &str) -> &mut Self {
+        self.last_mut().tags.push(tag.into());
+        self
+    }
+
+    /// Keep this entity fixed to screen coordinates while the camera pans or
+    /// zooms. Useful for HUD-style overlays; normal page elements are not
+    /// sticky by default.
+    pub fn sticky(&mut self) -> &mut Self {
+        self.last_mut().sticky = true;
+        self
+    }
+
     /// Pin this entity's position to another entity plus an offset. Its
     /// opacity is also multiplied by the followed entity's opacity.
     pub fn follow(&mut self, id: &str, offset: Vec2) -> &mut Self {
@@ -241,9 +343,9 @@ impl<'a> SceneBuilder<'a> {
     /// Attach a centred text label riding on this entity, addressable as
     /// `"{parent}.label"`.
     pub fn label(&mut self, text: &str) -> &mut Self {
-        let (parent_id, parent_z) = {
+        let (parent_id, parent_z, parent_sticky) = {
             let e = self.last_mut();
-            (e.id.clone(), e.z)
+            (e.id.clone(), e.z, e.sticky)
         };
         let mut lbl = Entity::new(
             format!("{parent_id}.label"),
@@ -256,6 +358,7 @@ impl<'a> SceneBuilder<'a> {
         );
         lbl.font = FontKind::MonoBold;
         lbl.z = parent_z + 1;
+        lbl.sticky = parent_sticky;
         lbl.follow = Some((parent_id, Vec2::ZERO));
         self.push(lbl)
     }

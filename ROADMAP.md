@@ -1,50 +1,51 @@
 # Roadmap
 
-Features worth adding, roughly ordered by (usefulness for weekly videos) ÷
-(implementation effort). Every item must preserve the core invariant:
-timeline evaluation stays a pure function of `t`.
+This project has caught up with most of the original roadmap. The checklist
+below records what is already shipped and what is intentionally left for later.
+Every future item must preserve the core invariant: timeline evaluation stays a
+pure function of `t`.
 
-## Near term — unblock better videos immediately
+## Implemented
 
-- [ ] **Stagger combinator** — `stagger(clips, delay)` beside `seq!`/`par!`;
-      the fade-in cascades in the examples hand-roll this today.
-- [ ] **Groups / tags** — tag entities (`.tag("bits")`), then
-      `act().fade_out_tagged("bits")`; kills the fade-everything boilerplate
-      in `clear_all` and the examples.
-- [ ] **Curved edges** — quadratic-bézier `Arc`/`Curve` shape with the same
-      `grow_to` support; straight arrows get cluttered on dense graphs
-      (skip lists, consistent-hash rings need this).
-- [ ] **Draw-on effect for outlines** — animate a shape's outline being
-      traced (0→100% of perimeter); the classic explainer reveal.
-- [ ] **Typewriter / per-glyph text** — reveal text character by character;
-      also per-char fade for code snippets.
-- [ ] **Beat-marker export** — dump section + `m.mark("name")` timestamps to
-      JSON alongside a recording, for lining up narration in the editor.
-      (Deliberate v1 non-goal, but it's ~30 lines and pays off every week.)
+- [x] **Stagger combinator** — `stagger(delay, clips)` and `stagger![delay; …]`
+      sit beside `seq!`/`par!` for cascaded reveals.
+- [x] **Groups / tags** — entities can be tagged with `.tag("name")`, queried
+      with `m.tagged("name")`, and animated as a group with `all(...)`.
+- [x] **Curved edges** — `curve` and `curve_arrow` support quadratic Bezier
+      paths with the same trace/grow rendering path as straight edges.
+- [x] **Draw-on effect for outlines** — `.untraced()` plus
+      `act().trace_in(id)` / `trace_out(id)` reveal or erase strokes.
+- [x] **Typewriter / per-glyph text** — `act().type_in(id)` reveals text by
+      character using the trace progress track.
+- [x] **Beat-marker export** — recordings write `markers.json` containing
+      sections and `m.mark("name")` timestamps.
+- [x] **Auto-layout helpers** — `layout::row`, `grid`, `tree`, and `ring`
+      generate common positions for examples.
+- [x] **Array/table primitive** — `SceneBuilder::cells(...)` declares labeled
+      cell arrays in one call.
+- [x] **Code-block primitive** — `SceneBuilder::code_block(...)` creates
+      addressable per-line text entities for highlighting.
+- [x] **Camera moves** — camera pan/zoom are normal tracks on `__cam` via
+      `act().cam_to(...)` and `act().cam_zoom(...)`.
+- [x] **Pipe frames straight into ffmpeg** — recording defaults to raw RGBA
+      frames over stdin when ffmpeg is available; `--png` keeps the old PNG
+      sequence path.
+- [x] **Transparent-background export** — `--alpha` renders transparent PNG
+      frames without page chrome.
+- [x] **Still-frame export** — `--still S` renders one PNG at timestamp `S`.
+- [x] **GIF/clip export** — `--from S --to S` records a time range for short
+      clips, and `--gif` pipes the result straight into `out.gif`.
+- [x] **Paper-grain shader pass** — `--grain` applies a subtle grain/vignette
+      post-process in live preview and recordings.
 
-## Layout & data helpers
+See `examples/features_demo.rs` for a compact tour of the implemented toolkit.
 
-- [ ] **Auto-layout helpers** — `layout::row/grid/tree/ring(ids, region)`
-      returning positions; hand-computing coordinates is most of the work in
-      an example today.
-- [ ] **Array/table primitive** — declare an n-cell array with labels in one
-      call (bit arrays, hash tables, ring buffers recur constantly).
-- [ ] **Code-block primitive** — monospace multi-line block with per-line
-      highlight verbs, for walking through pseudocode next to the animation.
-- [ ] **Camera moves** — pan/zoom as animatable tracks (`cam_to(rect, dur)`);
-      needed once scenes outgrow one screen (B-trees, large graphs).
+## Smaller polish still worth doing
 
-## Rendering & output
-
-- [ ] **Pipe frames straight into ffmpeg** — rawvideo over stdin instead of
-      PNG-per-frame; ~10× faster renders, no intermediate gigabytes.
-- [ ] **Transparent-background export** — RGBA frames for overlaying renders
-      on live-coding footage in the editor.
-- [ ] **Still-frame export** — `--still 42.5` renders one frame to PNG;
-      thumbnails and blog figures.
-- [ ] **GIF/clip export** — `--from/--to` range renders for social posts.
-- [ ] **Paper-grain shader pass** — subtle newsprint texture + vignette over
-      the final composite; first use of the post-processing seam.
+- [ ] **Named output path for stills** — `--still S --out path.png` instead of
+      always writing `still_S.png`.
+- [ ] **Golden-frame tests for implemented features** — render a few fixed
+      frames from `features_demo` and compare hashes to guard the renderer.
 
 ## Bigger swings (later)
 
@@ -52,16 +53,13 @@ timeline evaluation stays a pure function of `t`.
       `render::project`; prerequisite for the quaternion/BVH/frustum videos.
 - [ ] **Particle system** — a `Shape` variant whose draw arm evaluates a
       particle distribution as a pure function of `t` (keeps determinism).
-- [ ] **Shape morphing** — polygon↔polygon interpolation (convex hull steps,
-      Voronoi cell changes).
-- [ ] **Math typesetting** — prerender LaTeX to SVG/mesh at build time and
-      draw as a primitive; formulas are unavoidable eventually.
-- [ ] **Golden-frame tests** — render fixed frames of each example in CI and
-      diff against checked-in hashes; determinism makes this trivial and it
-      guards every refactor.
+- [ ] **Shape morphing** — polygon to polygon interpolation for convex hull
+      steps and Voronoi cell changes.
+- [ ] **Math typesetting** — prerender LaTeX to SVG/mesh at build time and draw
+      as a primitive; formulas are unavoidable eventually.
 
 ## Explicitly not planned
 
 - GUI/editor for building animations — code-driven is the point.
-- Audio playback/sync inside the engine — post-production's job
-  (beat-marker export above is the hand-off).
+- Audio playback/sync inside the engine — post-production's job; marker export
+  is the hand-off.

@@ -8,9 +8,14 @@
 use macroquad::prelude::Vec2;
 
 use crate::animate::{act, ActBuilder};
+use crate::primitives::{Entity, Shape};
 use crate::scene::{Scene, SceneBuilder};
 use crate::style;
 use crate::timeline::{Clip, TextEvent, Timeline, TrackSpec};
+
+/// Reserved id of the animatable camera entity every movie carries.
+/// Animate it with `act().cam_to(pos)` / `act().cam_zoom(z)`.
+pub const CAMERA_ID: &str = "__cam";
 
 /// A complete animation: base scene + placed clips + metadata.
 pub struct Movie {
@@ -23,21 +28,34 @@ pub struct Movie {
     cursor: f32,
     /// (time, name) markers — the player jumps to these with keys 1–9.
     pub sections: Vec<(f32, String)>,
+    /// Named beat markers from [`Movie::mark`], exported to `markers.json`
+    /// alongside recordings for narration alignment.
+    pub marks: Vec<(f32, String)>,
     section_n: usize,
 }
 
 impl Movie {
     /// New movie with a canvas size. 1280×720 keeps live preview snappy;
-    /// bump to 1920×1080 for final renders.
+    /// recordings supersample to 1080p regardless.
     pub fn new(title: &str, width: u32, height: u32) -> Movie {
+        let mut scene = Scene::new();
+        let mut cam = Entity::new(
+            CAMERA_ID,
+            Shape::Circle { r: 0.0 },
+            Vec2::new(width as f32 / 2.0, height as f32 / 2.0),
+            style::PAPER,
+        );
+        cam.opacity = 0.0;
+        scene.add(cam);
         Movie {
             title: title.into(),
             width,
             height,
-            scene: Scene::new(),
+            scene,
             placed: Vec::new(),
             cursor: 0.0,
             sections: Vec::new(),
+            marks: Vec::new(),
             section_n: 0,
         }
     }
@@ -74,6 +92,23 @@ impl Movie {
     /// Current cursor time (useful for noting narration timestamps).
     pub fn now(&self) -> f32 {
         self.cursor
+    }
+
+    /// Drop a named beat marker at the cursor. Markers (plus sections) are
+    /// written to `markers.json` next to recorded frames.
+    pub fn mark(&mut self, name: &str) {
+        self.marks.push((self.cursor, name.to_string()));
+    }
+
+    /// Ids of all entities carrying `tag`. Pair with [`crate::animate::all`]:
+    /// `m.play(all(&m.tagged("bits"), |id| act().fade_out(id)))`.
+    pub fn tagged(&self, tag: &str) -> Vec<String> {
+        self.scene
+            .entities
+            .iter()
+            .filter(|e| e.tags.iter().any(|t| t == tag))
+            .map(|e| e.id.clone())
+            .collect()
     }
 
     /// Section break: fades in a serif headline with an accent rule
@@ -146,7 +181,7 @@ impl Movie {
             .scene
             .entities
             .iter()
-            .filter(|e| !e.id.starts_with("__section"))
+            .filter(|e| !e.id.starts_with("__"))
             .map(|e| e.id.clone())
             .collect();
         let clips: Vec<Clip> = ids

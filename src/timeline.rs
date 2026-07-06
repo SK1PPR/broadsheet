@@ -48,11 +48,13 @@ impl Value {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Prop {
     Pos,
-    /// Endpoint of a `Line`/`Arrow` shape.
+    /// Endpoint of a `Line`/`Arrow`/`Curve` shape.
     To,
     Color,
     Opacity,
     Scale,
+    /// Draw-on / typewriter progress ([`crate::primitives::Entity::trace`]).
+    Trace,
 }
 
 /// Where a track ends up. `Rel` and `Revert` are resolved to absolute values
@@ -173,8 +175,9 @@ fn get_prop(scene: &Scene, id: &str, prop: Prop) -> Option<Value> {
         Prop::Color => Value::C(e.color),
         Prop::Opacity => Value::F(e.opacity),
         Prop::Scale => Value::F(e.scale),
+        Prop::Trace => Value::F(e.trace),
         Prop::To => match &e.shape {
-            Shape::Line { to } | Shape::Arrow { to } => Value::V(*to),
+            Shape::Line { to } | Shape::Arrow { to } | Shape::Curve { to, .. } => Value::V(*to),
             _ => return None,
         },
     })
@@ -187,8 +190,11 @@ fn set_prop(scene: &mut Scene, id: &str, prop: Prop, v: Value) {
         (Prop::Color, Value::C(c)) => e.color = c,
         (Prop::Opacity, Value::F(o)) => e.opacity = o,
         (Prop::Scale, Value::F(s)) => e.scale = s,
+        (Prop::Trace, Value::F(f)) => e.trace = f,
         (Prop::To, Value::V(p)) => {
-            if let Shape::Line { to } | Shape::Arrow { to } = &mut e.shape {
+            if let Shape::Line { to } | Shape::Arrow { to } | Shape::Curve { to, .. } =
+                &mut e.shape
+            {
                 *to = p;
             }
         }

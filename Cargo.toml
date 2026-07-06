@@ -1,6 +1,6 @@
 [package]
 name = "broadsheet"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "Newspaper-styled 2D animation engine for algorithm & data-structure explainer videos — stateless timeline, deterministic frame recording, built on macroquad"
 license = "MIT"
@@ -9,6 +9,7 @@ readme = "README.md"
 keywords = ["animation", "visualization", "macroquad", "explainer", "algorithms"]
 categories = ["graphics", "multimedia::video", "visualization"]
 repository = "https://github.com/SK1PPR/broadsheet"
+documentation = "https://docs.rs/broadsheet"
 include = [
     "src/**",
     "examples/**",
@@ -21,6 +22,9 @@ include = [
 
 [dependencies]
 macroquad = "0.4"
+
+[package.metadata.docs.rs]
+default-target = "x86_64-unknown-linux-gnu"
 
 [profile.dev]
 opt-level = 1

@@ -24,7 +24,7 @@ Live transport controls (for lining narration up with beats):
 | `←` `→` | step one frame |
 | `,` `.` | jump ±1 s |
 | `1`–`9` | jump to section markers |
-| `F` | toggle fullscreen (fit-to-screen, letterboxed) |
+| `F` / `Ctrl`+`Cmd`+`F` | toggle fullscreen (fit-to-screen, letterboxed) |
 | `R` | restart |
 | drag bottom bar | scrub |
 
@@ -37,19 +37,25 @@ cargo run --example bloom_filter -- --record out/bloom --fps 60
 ```
 
 Renders at a fixed timestep (`t = frame / fps`, wall clock ignored → output
-is deterministic), writes `out/bloom/frame_00000.png …`, then runs ffmpeg if
-installed — otherwise it prints the exact stitch command:
+is deterministic), then pipes raw RGBA frames straight into ffmpeg when it is
+installed:
 
 ```sh
-ffmpeg -framerate 60 -i out/bloom/frame_%05d.png -c:v libx264 -pix_fmt yuv420p bloom.mp4
+out/bloom/out.mp4
 ```
 
+If ffmpeg is missing, or if you pass `--png`, it writes
+`out/bloom/frame_00000.png …` and prints the exact stitch command.
 Recording supersamples at `--scale 1.5` by default, so the 1280×720 logical
 canvas comes out as true 1920×1080 with fonts rasterized at full resolution
 (pass `--scale 2` for 1440p). Everything is drawn with 4× MSAA.
 
 Tip: `--fps 2` sparsely samples the whole movie in a few dozen frames —
 a fast visual proof-read of a full video. `--frames N` caps the frame count.
+Useful export flags: `--still S` writes one PNG at timestamp `S`,
+`--from S --to S` records a range, `--alpha` writes transparent PNG frames,
+`--gif` pipes a recording to `out.gif`, and `--grain` applies the newsprint
+grain/vignette pass.
 
 ## Writing a movie
 
@@ -95,7 +101,9 @@ Scene niceties: `.label("A")` puts a mono label riding on a shape
 another; `.wrap(px)` word-wraps long text (captions) into centred lines;
 `.hidden()` starts invisible for a later `fade_in`; `m.wait(s)`
 leaves silence; `m.at(t, clip)` places a clip at an absolute timestamp;
-`m.now()` tells you the cursor time for narration notes.
+`m.now()` tells you the cursor time for narration notes; `m.mark("name")`
+exports a beat marker to `markers.json` during recording; `.sticky()` keeps
+an entity in screen coordinates during camera pan/zoom for HUD-style overlays.
 
 Palette: `INK`, `PAPER`, `ACCENT` (newsprint red), `BLUE`, `FADED`,
 `PAPER_SHADE`.
