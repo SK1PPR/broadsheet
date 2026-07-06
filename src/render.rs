@@ -1,11 +1,7 @@
 //! The macroquad draw pass: scene → pixels, plus the newspaper page chrome.
 //!
-//! Adding a new primitive = one match arm in [`draw_entity`].
-//! All coordinates flow through [`project`], which is the seam where a 3D
-//! camera would slot in later — today it scales logical coordinates by the
-//! supersampling factor `s` (1.0 live, 1.5 by default when recording, which
-//! turns the 1280×720 logical canvas into true 1920×1080 output with fonts
-//! rasterized at full resolution).
+//! New primitive = match arm in [`draw_entity`]. All coordinates flow
+//! through [`project`]: today the supersampling scale, later a 3D camera.
 
 use macroquad::prelude::*;
 
@@ -13,14 +9,14 @@ use crate::primitives::{Entity, FontKind, Shape};
 use crate::scene::Scene;
 use crate::style::{self, Fonts};
 
-/// World (logical) → screen (physical). The single seam for both the
-/// supersampling factor today and a real camera/3D projection later.
+/// World (logical) → screen (physical). The seam for supersampling now and
+/// a camera/3D projection later.
 #[inline]
 pub fn project(p: Vec2, s: f32) -> Vec2 {
     p * s
 }
 
-fn font_of<'a>(fonts: &'a Fonts, kind: FontKind) -> Option<&'a Font> {
+fn font_of(fonts: &Fonts, kind: FontKind) -> Option<&Font> {
     match kind {
         FontKind::Serif => fonts.serif.as_ref(),
         FontKind::Mono => fonts.mono.as_ref(),
@@ -33,7 +29,11 @@ fn wrap_lines(text: &str, font: Option<&Font>, font_size: u16, max_w: f32) -> Ve
     let mut lines: Vec<String> = Vec::new();
     let mut cur = String::new();
     for word in text.split_whitespace() {
-        let cand = if cur.is_empty() { word.to_string() } else { format!("{cur} {word}") };
+        let cand = if cur.is_empty() {
+            word.to_string()
+        } else {
+            format!("{cur} {word}")
+        };
         if !cur.is_empty() && measure_text(&cand, font, font_size, 1.0).width > max_w {
             lines.push(std::mem::take(&mut cur));
             cur = word.to_string();
@@ -90,7 +90,7 @@ fn draw_arrow_shape(from: Vec2, to: Vec2, width: f32, color: Color) {
     let d = to - from;
     let len = d.length();
     if len < 0.5 {
-        return; // degenerate (e.g. before a grow_to starts) — draw nothing
+        return; // zero-length, e.g. before a grow_to starts
     }
     let dir = d / len;
     let head_len = (10.0 + width * 2.5).min(len);
@@ -107,7 +107,7 @@ fn draw_polygon_shape(pts: &[Vec2], offset: Vec2, e: &Entity, fill: Color, outli
     }
     let p: Vec<Vec2> = pts.iter().map(|&q| project(q + offset, s)).collect();
     if e.stroke.fill {
-        // triangle fan — fine for the convex shapes explainers use
+        // triangle fan; assumes convex
         for i in 1..p.len() - 1 {
             draw_triangle(p[0], p[i], p[i + 1], fill);
         }
@@ -121,8 +121,7 @@ fn draw_polygon_shape(pts: &[Vec2], offset: Vec2, e: &Entity, fill: Color, outli
     }
 }
 
-/// Draw one entity at supersampling factor `s`. The single place shape
-/// geometry meets pixels.
+/// Draw one entity at supersampling factor `s`.
 pub fn draw_entity(e: &Entity, fonts: &Fonts, s: f32) {
     if e.opacity <= 0.001 {
         return;
@@ -192,8 +191,22 @@ pub fn draw_page_chrome(title: &str, w: f32, h: f32, fonts: &Fonts, s: f32) {
     let (pw, ph) = (w * s, h * s);
 
     // double page border
-    draw_rectangle_lines(16.0 * s, 16.0 * s, pw - 32.0 * s, ph - 32.0 * s, 3.0 * s, style::INK);
-    draw_rectangle_lines(24.0 * s, 24.0 * s, pw - 48.0 * s, ph - 48.0 * s, 1.0 * s, style::FADED);
+    draw_rectangle_lines(
+        16.0 * s,
+        16.0 * s,
+        pw - 32.0 * s,
+        ph - 32.0 * s,
+        3.0 * s,
+        style::INK,
+    );
+    draw_rectangle_lines(
+        24.0 * s,
+        24.0 * s,
+        pw - 48.0 * s,
+        ph - 48.0 * s,
+        1.0 * s,
+        style::FADED,
+    );
 
     // masthead
     let title_upper = title.to_uppercase();
@@ -212,18 +225,46 @@ pub fn draw_page_chrome(title: &str, w: f32, h: f32, fonts: &Fonts, s: f32) {
             style::MASTHEAD_LEFT,
             44.0 * s,
             62.0 * s,
-            TextParams { font: Some(mono), font_size: fs, font_scale: 1.0, font_scale_aspect: 1.0, rotation: 0.0, color: style::FADED },
+            TextParams {
+                font: Some(mono),
+                font_size: fs,
+                font_scale: 1.0,
+                font_scale_aspect: 1.0,
+                rotation: 0.0,
+                color: style::FADED,
+            },
         );
         let rdims = measure_text(style::MASTHEAD_RIGHT, Some(mono), fs, 1.0);
         draw_text_ex(
             style::MASTHEAD_RIGHT,
             pw - 44.0 * s - rdims.width,
             62.0 * s,
-            TextParams { font: Some(mono), font_size: fs, font_scale: 1.0, font_scale_aspect: 1.0, rotation: 0.0, color: style::FADED },
+            TextParams {
+                font: Some(mono),
+                font_size: fs,
+                font_scale: 1.0,
+                font_scale_aspect: 1.0,
+                rotation: 0.0,
+                color: style::FADED,
+            },
         );
     }
 
     // dateline: thick + thin rule under the masthead
-    draw_line(40.0 * s, 88.0 * s, pw - 40.0 * s, 88.0 * s, 2.5 * s, style::INK);
-    draw_line(40.0 * s, 93.0 * s, pw - 40.0 * s, 93.0 * s, 1.0 * s, style::INK);
+    draw_line(
+        40.0 * s,
+        88.0 * s,
+        pw - 40.0 * s,
+        88.0 * s,
+        2.5 * s,
+        style::INK,
+    );
+    draw_line(
+        40.0 * s,
+        93.0 * s,
+        pw - 40.0 * s,
+        93.0 * s,
+        1.0 * s,
+        style::INK,
+    );
 }

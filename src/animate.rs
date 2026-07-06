@@ -1,11 +1,6 @@
-//! The high-level animation DSL: verbs, `seq!`/`par!`, and beats.
+//! The animation DSL: verbs, `seq!`/`par!`, and beats.
 //!
-//! Every verb is a method on [`ActBuilder`] that describes *what* happens to
-//! *which entity*; `.dur()` and `.ease()` tune it; the builder converts into
-//! a [`Clip`] when handed to `seq!`, `par!`, or `Movie::play`.
-//!
-//! To add a new verb: add a [`Verb`] variant, a builder method, and a match
-//! arm in `build_clip` that emits tracks. Nothing else changes.
+//! New verb = `Verb` variant + builder method + match arm in `build_clip`.
 
 use macroquad::prelude::{Color, Vec2};
 
@@ -13,7 +8,6 @@ use crate::easing::Easing;
 use crate::style;
 use crate::timeline::{Clip, Prop, TargetValue, TextEvent, TrackSpec, Value};
 
-/// What an act does. Internal — you interact via [`ActBuilder`] methods.
 #[derive(Debug, Clone)]
 enum Verb {
     MoveTo(String, Vec2),
@@ -152,46 +146,135 @@ impl ActBuilder {
     }
 }
 
-fn track(id: &str, prop: Prop, target: TargetValue, start: f32, dur: f32, easing: Easing) -> TrackSpec {
-    TrackSpec { id: id.into(), prop, target, start, dur, easing }
+fn track(
+    id: &str,
+    prop: Prop,
+    target: TargetValue,
+    start: f32,
+    dur: f32,
+    easing: Easing,
+) -> TrackSpec {
+    TrackSpec {
+        id: id.into(),
+        prop,
+        target,
+        start,
+        dur,
+        easing,
+    }
 }
 
 fn build_clip(b: ActBuilder) -> Clip {
-    let verb = b.verb.expect("ActBuilder used without a verb (e.g. .move_to(..))");
+    let verb = b
+        .verb
+        .expect("ActBuilder used without a verb (e.g. .move_to(..))");
     let d = b.dur.unwrap_or_else(|| verb.default_dur());
     let e = b.easing;
-    let mut clip = Clip { dur: d, ..Default::default() };
+    let mut clip = Clip {
+        dur: d,
+        ..Default::default()
+    };
 
     match verb {
         Verb::MoveTo(id, to) => {
-            clip.tracks.push(track(&id, Prop::Pos, TargetValue::Abs(Value::V(to)), 0.0, d, e));
+            clip.tracks.push(track(
+                &id,
+                Prop::Pos,
+                TargetValue::Abs(Value::V(to)),
+                0.0,
+                d,
+                e,
+            ));
         }
         Verb::MoveBy(id, by) => {
-            clip.tracks.push(track(&id, Prop::Pos, TargetValue::Rel(Value::V(by)), 0.0, d, e));
+            clip.tracks.push(track(
+                &id,
+                Prop::Pos,
+                TargetValue::Rel(Value::V(by)),
+                0.0,
+                d,
+                e,
+            ));
         }
         Verb::FadeIn(id) => {
-            clip.tracks.push(track(&id, Prop::Opacity, TargetValue::Abs(Value::F(1.0)), 0.0, d, e));
+            clip.tracks.push(track(
+                &id,
+                Prop::Opacity,
+                TargetValue::Abs(Value::F(1.0)),
+                0.0,
+                d,
+                e,
+            ));
         }
         Verb::FadeOut(id) => {
-            clip.tracks.push(track(&id, Prop::Opacity, TargetValue::Abs(Value::F(0.0)), 0.0, d, e));
+            clip.tracks.push(track(
+                &id,
+                Prop::Opacity,
+                TargetValue::Abs(Value::F(0.0)),
+                0.0,
+                d,
+                e,
+            ));
         }
         Verb::ColorTo(id, c) => {
-            clip.tracks.push(track(&id, Prop::Color, TargetValue::Abs(Value::C(c)), 0.0, d, e));
+            clip.tracks.push(track(
+                &id,
+                Prop::Color,
+                TargetValue::Abs(Value::C(c)),
+                0.0,
+                d,
+                e,
+            ));
         }
         Verb::Highlight(id, c) => {
             // in 25% — hold 50% — restore 25%
-            clip.tracks.push(track(&id, Prop::Color, TargetValue::Abs(Value::C(c)), 0.0, d * 0.25, Easing::OutQuad));
-            clip.tracks.push(track(&id, Prop::Color, TargetValue::Revert, d * 0.75, d * 0.25, Easing::InQuad));
+            clip.tracks.push(track(
+                &id,
+                Prop::Color,
+                TargetValue::Abs(Value::C(c)),
+                0.0,
+                d * 0.25,
+                Easing::OutQuad,
+            ));
+            clip.tracks.push(track(
+                &id,
+                Prop::Color,
+                TargetValue::Revert,
+                d * 0.75,
+                d * 0.25,
+                Easing::InQuad,
+            ));
         }
         Verb::ScaleTo(id, s) => {
-            clip.tracks.push(track(&id, Prop::Scale, TargetValue::Abs(Value::F(s)), 0.0, d, e));
+            clip.tracks.push(track(
+                &id,
+                Prop::Scale,
+                TargetValue::Abs(Value::F(s)),
+                0.0,
+                d,
+                e,
+            ));
         }
         Verb::Pulse(id) => {
-            clip.tracks.push(track(&id, Prop::Scale, TargetValue::Rel(Value::F(0.18)), 0.0, d * 0.4, Easing::OutQuad));
-            clip.tracks.push(track(&id, Prop::Scale, TargetValue::Revert, d * 0.4, d * 0.6, Easing::OutBack));
+            clip.tracks.push(track(
+                &id,
+                Prop::Scale,
+                TargetValue::Rel(Value::F(0.18)),
+                0.0,
+                d * 0.4,
+                Easing::OutQuad,
+            ));
+            clip.tracks.push(track(
+                &id,
+                Prop::Scale,
+                TargetValue::Revert,
+                d * 0.4,
+                d * 0.6,
+                Easing::OutBack,
+            ));
         }
         Verb::Shake(id) => {
-            // relative x offsets summing to zero, so the entity lands home
+            // offsets sum to zero so the entity lands back home
             let offs = [10.0, -16.0, 12.0, -8.0, 5.0, -3.0f32];
             let seg = d / offs.len() as f32;
             for (i, dx) in offs.iter().enumerate() {
@@ -206,12 +289,37 @@ fn build_clip(b: ActBuilder) -> Clip {
             }
         }
         Verb::GrowTo(id, to) => {
-            clip.tracks.push(track(&id, Prop::To, TargetValue::Abs(Value::V(to)), 0.0, d, e));
+            clip.tracks.push(track(
+                &id,
+                Prop::To,
+                TargetValue::Abs(Value::V(to)),
+                0.0,
+                d,
+                e,
+            ));
         }
         Verb::SetText(id, text) => {
-            clip.tracks.push(track(&id, Prop::Opacity, TargetValue::Abs(Value::F(0.0)), 0.0, d * 0.4, Easing::InQuad));
-            clip.events.push(TextEvent { id: id.clone(), content: text, at: d * 0.5 });
-            clip.tracks.push(track(&id, Prop::Opacity, TargetValue::Abs(Value::F(1.0)), d * 0.6, d * 0.4, Easing::OutQuad));
+            clip.tracks.push(track(
+                &id,
+                Prop::Opacity,
+                TargetValue::Abs(Value::F(0.0)),
+                0.0,
+                d * 0.4,
+                Easing::InQuad,
+            ));
+            clip.events.push(TextEvent {
+                id: id.clone(),
+                content: text,
+                at: d * 0.5,
+            });
+            clip.tracks.push(track(
+                &id,
+                Prop::Opacity,
+                TargetValue::Abs(Value::F(1.0)),
+                d * 0.6,
+                d * 0.4,
+                Easing::OutQuad,
+            ));
         }
     }
     clip

@@ -33,7 +33,12 @@ pub(crate) struct Opts {
 
 pub(crate) fn parse_opts() -> Opts {
     let args: Vec<String> = std::env::args().collect();
-    let mut opts = Opts { record: None, fps: 60, max_frames: None, scale: 0.0 };
+    let mut opts = Opts {
+        record: None,
+        fps: 60,
+        max_frames: None,
+        scale: 0.0,
+    };
     let mut i = 1;
     while i < args.len() {
         match args[i].as_str() {
@@ -132,8 +137,15 @@ pub async fn run_loop(movie: Movie) {
             t = 0.0;
         }
         let digits = [
-            KeyCode::Key1, KeyCode::Key2, KeyCode::Key3, KeyCode::Key4, KeyCode::Key5,
-            KeyCode::Key6, KeyCode::Key7, KeyCode::Key8, KeyCode::Key9,
+            KeyCode::Key1,
+            KeyCode::Key2,
+            KeyCode::Key3,
+            KeyCode::Key4,
+            KeyCode::Key5,
+            KeyCode::Key6,
+            KeyCode::Key7,
+            KeyCode::Key8,
+            KeyCode::Key9,
         ];
         for (i, k) in digits.iter().enumerate() {
             if is_key_pressed(*k) {
@@ -177,7 +189,13 @@ pub async fn run_loop(movie: Movie) {
         draw_rectangle(0.0, bar_y, pw, 26.0, style::with_opacity(style::INK, 0.85));
         draw_rectangle(0.0, bar_y, pw * (t / timeline.dur), 3.0, style::ACCENT);
         for (st, _) in &movie.sections {
-            draw_rectangle(pw * (st / timeline.dur) - 1.0, bar_y, 2.0, 8.0, style::PAPER);
+            draw_rectangle(
+                pw * (st / timeline.dur) - 1.0,
+                bar_y,
+                2.0,
+                8.0,
+                style::PAPER,
+            );
         }
         let frame_no = (t * opts.fps as f32).round() as u32;
         let hud = format!(

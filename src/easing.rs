@@ -1,8 +1,4 @@
-//! Easing functions for interpolation.
-//!
-//! Every animated track carries an [`Easing`] that reshapes normalized time
-//! `u ∈ [0, 1]` before interpolation. Add a new easing by adding a variant
-//! and a match arm in [`Easing::apply`].
+//! Easing curves. To add one: new variant + match arm in [`Easing::apply`].
 
 /// An easing curve. Applied to normalized time before interpolation.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
@@ -13,14 +9,12 @@ pub enum Easing {
     InOutQuad,
     InCubic,
     OutCubic,
-    /// The workhorse for movement: slow start, slow stop.
     #[default]
     InOutCubic,
-    /// Overshoots slightly past the target, then settles. Good for "pop" arrivals.
+    /// Overshoots past the target, then settles.
     OutBack,
-    /// Springy oscillation into place. Use sparingly.
+    /// Springy oscillation into place.
     OutElastic,
-    /// Bounces like a dropped ball.
     OutBounce,
 }
 

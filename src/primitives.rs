@@ -1,9 +1,5 @@
-//! Drawable primitives: the [`Entity`] struct and its [`Shape`] variants.
-//!
-//! Composition over hierarchy: there is exactly one entity type, and what it
-//! looks like is data (`Shape`), not a trait object. To add a new primitive,
-//! add a `Shape` variant here and a match arm in `render::draw_entity` —
-//! nothing else in the engine needs to know.
+//! Drawable primitives. One entity type; its look is data (`Shape`).
+//! New primitive = new `Shape` variant + match arm in `render::draw_entity`.
 
 use macroquad::prelude::{Color, Vec2};
 
@@ -55,22 +51,23 @@ pub struct StrokeStyle {
 
 impl Default for StrokeStyle {
     fn default() -> Self {
-        StrokeStyle { fill: true, outline: false, width: 2.5, outline_color: None }
+        StrokeStyle {
+            fill: true,
+            outline: false,
+            width: 2.5,
+            outline_color: None,
+        }
     }
 }
 
 /// One drawable object in a [`crate::scene::Scene`].
-///
-/// All animatable state lives in plain fields here; the timeline mutates a
-/// per-frame clone of the scene, never your base definition.
 #[derive(Debug, Clone)]
 pub struct Entity {
     /// Unique id within the scene. Animations address entities by this.
     pub id: String,
     pub shape: Shape,
-    /// Anchor position (centre for circles/rects/text, tail for lines/arrows,
-    /// offset for polygons). 2D today; all rendering goes through
-    /// `render::project` so a 3D upgrade only touches that one seam.
+    /// Anchor position: centre for circles/rects/text, tail for lines/arrows,
+    /// offset for polygons.
     pub pos: Vec2,
     /// Primary color (fill, or stroke when there is no fill).
     pub color: Color,
@@ -88,15 +85,13 @@ pub struct Entity {
     /// Max text width in logical pixels; longer text word-wraps into
     /// centred lines. `None` = single line. Text only.
     pub wrap: Option<f32>,
-    /// If set, this entity's `pos` is `pos_of(other) + offset` every frame,
-    /// and its opacity is multiplied by the followed entity's opacity.
-    /// Used for labels that ride on nodes.
+    /// Pin `pos` to `pos_of(other) + offset` each frame; opacity is
+    /// multiplied by the followed entity's opacity. Used by labels.
     pub follow: Option<(String, Vec2)>,
 }
 
 impl Entity {
-    /// A new entity with engine defaults (opaque, scale 1, z 0, ink handled
-    /// by the caller — color must be set explicitly or via the scene builder).
+    /// New entity with defaults: opaque, scale 1, z 0.
     pub fn new(id: impl Into<String>, shape: Shape, pos: Vec2, color: Color) -> Self {
         Entity {
             id: id.into(),

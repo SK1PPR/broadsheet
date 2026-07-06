@@ -21,8 +21,7 @@ impl Scene {
         Scene::default()
     }
 
-    /// Add an entity. Panics on duplicate id — ids are how animations address
-    /// things, so silently shadowing one is always a bug in the movie script.
+    /// Add an entity. Panics on duplicate id.
     pub fn add(&mut self, e: Entity) -> usize {
         assert!(
             !self.index.contains_key(&e.id),
@@ -40,7 +39,10 @@ impl Scene {
     }
 
     pub fn get_mut(&mut self, id: &str) -> Option<&mut Entity> {
-        self.index.get(id).copied().map(move |i| &mut self.entities[i])
+        self.index
+            .get(id)
+            .copied()
+            .map(move |i| &mut self.entities[i])
     }
 
     pub fn contains(&self, id: &str) -> bool {
@@ -74,7 +76,9 @@ impl<'a> SceneBuilder<'a> {
     }
 
     fn last_mut(&mut self) -> &mut Entity {
-        let i = self.last.expect("modifier called before any shape was added");
+        let i = self
+            .last
+            .expect("modifier called before any shape was added");
         &mut self.scene.entities[i]
     }
 
@@ -84,14 +88,24 @@ impl<'a> SceneBuilder<'a> {
     /// default (the house style for nodes).
     pub fn circle(&mut self, id: &str, pos: Vec2, r: f32) -> &mut Self {
         let mut e = Entity::new(id, Shape::Circle { r }, pos, style::PAPER);
-        e.stroke = StrokeStyle { fill: true, outline: true, outline_color: Some(style::INK), ..Default::default() };
+        e.stroke = StrokeStyle {
+            fill: true,
+            outline: true,
+            outline_color: Some(style::INK),
+            ..Default::default()
+        };
         self.push(e)
     }
 
     /// Rectangle centred at `pos`. Same default styling as `circle`.
     pub fn rect(&mut self, id: &str, pos: Vec2, w: f32, h: f32) -> &mut Self {
         let mut e = Entity::new(id, Shape::Rect { w, h }, pos, style::PAPER);
-        e.stroke = StrokeStyle { fill: true, outline: true, outline_color: Some(style::INK), ..Default::default() };
+        e.stroke = StrokeStyle {
+            fill: true,
+            outline: true,
+            outline_color: Some(style::INK),
+            ..Default::default()
+        };
         self.push(e)
     }
 
@@ -108,7 +122,12 @@ impl<'a> SceneBuilder<'a> {
     /// Polygon with absolute points. Animate its `pos` to move it as a unit.
     pub fn polygon(&mut self, id: &str, pts: Vec<Vec2>) -> &mut Self {
         let mut e = Entity::new(id, Shape::Polygon { pts }, Vec2::ZERO, style::PAPER);
-        e.stroke = StrokeStyle { fill: true, outline: true, outline_color: Some(style::INK), ..Default::default() };
+        e.stroke = StrokeStyle {
+            fill: true,
+            outline: true,
+            outline_color: Some(style::INK),
+            ..Default::default()
+        };
         self.push(e)
     }
 
@@ -116,7 +135,10 @@ impl<'a> SceneBuilder<'a> {
     pub fn text(&mut self, id: &str, pos: Vec2, content: &str) -> &mut Self {
         self.push(Entity::new(
             id,
-            Shape::Text { content: content.into(), size: 28.0 },
+            Shape::Text {
+                content: content.into(),
+                size: 28.0,
+            },
             pos,
             style::INK,
         ))
@@ -216,9 +238,8 @@ impl<'a> SceneBuilder<'a> {
         self
     }
 
-    /// Attach a centred text label riding on this entity. The label is its
-    /// own entity with id `"{parent}.label"`, so it can be animated too
-    /// (e.g. `color_to("bit3.label", PAPER)`).
+    /// Attach a centred text label riding on this entity, addressable as
+    /// `"{parent}.label"`.
     pub fn label(&mut self, text: &str) -> &mut Self {
         let (parent_id, parent_z) = {
             let e = self.last_mut();
@@ -226,7 +247,10 @@ impl<'a> SceneBuilder<'a> {
         };
         let mut lbl = Entity::new(
             format!("{parent_id}.label"),
-            Shape::Text { content: text.into(), size: 24.0 },
+            Shape::Text {
+                content: text.into(),
+                size: 24.0,
+            },
             Vec2::ZERO,
             style::INK,
         );

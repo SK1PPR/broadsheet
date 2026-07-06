@@ -91,7 +91,7 @@ impl Movie {
         let bg_id = format!("__section{n}.bg");
         {
             let mut s = self.scene();
-            // paper backdrop so the card reads cleanly over a busy stage
+            // backdrop keeps the card legible over a busy stage
             s.rect(&bg_id, Vec2::new(cx, cy - 10.0), 800.0, 230.0)
                 .color(style::PAPER)
                 .outline_color(style::INK)
@@ -104,11 +104,15 @@ impl Movie {
                 .color(style::INK)
                 .z(90)
                 .hidden();
-            s.line(&rule_id, Vec2::new(cx - 130.0, cy + 34.0), Vec2::new(cx + 130.0, cy + 34.0))
-                .color(style::ACCENT)
-                .stroke(3.0)
-                .z(90)
-                .hidden();
+            s.line(
+                &rule_id,
+                Vec2::new(cx - 130.0, cy + 34.0),
+                Vec2::new(cx + 130.0, cy + 34.0),
+            )
+            .color(style::ACCENT)
+            .stroke(3.0)
+            .z(90)
+            .hidden();
             s.text(&kicker_id, Vec2::new(cx, cy - 62.0), &format!("§ {n}"))
                 .size(20.0)
                 .color(style::FADED)

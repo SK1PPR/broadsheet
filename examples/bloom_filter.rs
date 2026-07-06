@@ -83,14 +83,21 @@ fn main() {
                 .color(FADED)
                 .follow(&bit_id(i), v(0.0, 48.0));
         }
-        s.text("word", WORD_POS, "\"cat\"").mono_bold().size(44.0).hidden();
+        s.text("word", WORD_POS, "\"cat\"")
+            .mono_bold()
+            .size(44.0)
+            .hidden();
         for h in 0..3 {
             s.arrow(&format!("h{h}"), ARROW_TAIL, ARROW_TAIL)
                 .color(INK)
                 .stroke(2.0)
                 .hidden();
         }
-        s.text("caption", v(640.0, 620.0), "").size(22.0).color(FADED).wrap(1080.0).hidden();
+        s.text("caption", v(640.0, 620.0), "")
+            .size(22.0)
+            .color(FADED)
+            .wrap(1080.0)
+            .hidden();
         s.text("stamp", v(640.0, 330.0), "FALSE POSITIVE")
             .serif()
             .size(64.0)
@@ -141,7 +148,10 @@ fn main() {
     m.play(act().set_text("caption", "\"owl\" was never inserted. check its bits:"));
     m.wait(0.4);
     probe(&mut m, owl, false, BLUE);
-    m.play(act().set_text("caption", "all k bits are 1 → the filter says \"probably present\""));
+    m.play(act().set_text(
+        "caption",
+        "all k bits are 1 → the filter says \"probably present\"",
+    ));
     m.wait(1.0);
 
     m.play(par![

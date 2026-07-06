@@ -59,9 +59,7 @@ impl Recorder {
             "yuv420p",
             out.to_str().unwrap(),
         ];
-        println!(
-            "\n{} frames written to {}/", self.frame, self.dir.display()
-        );
+        println!("\n{} frames written to {}/", self.frame, self.dir.display());
         println!("stitch with:\n  ffmpeg {}\n", args.join(" "));
         match Command::new("ffmpeg").args(args).status() {
             Ok(s) if s.success() => println!("ffmpeg: wrote {}", out.display()),

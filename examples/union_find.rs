@@ -32,7 +32,10 @@ fn union(m: &mut Movie, child: usize, parent: usize, caption: &str) {
     ]);
     m.play(par![
         act().fade_in(&parrow(child)).dur(0.15),
-        act().grow_to(&parrow(child), row_pos(parent)).dur(0.5).ease(InOutCubic),
+        act()
+            .grow_to(&parrow(child), row_pos(parent))
+            .dur(0.5)
+            .ease(InOutCubic),
     ]);
     m.wait(0.35);
 }
@@ -70,7 +73,11 @@ fn main() {
                 .hidden()
                 .label(&i.to_string());
         }
-        s.text("caption", v(640.0, 140.0), "").size(22.0).color(FADED).wrap(1080.0).hidden();
+        s.text("caption", v(640.0, 140.0), "")
+            .size(22.0)
+            .color(FADED)
+            .wrap(1080.0)
+            .hidden();
     }
 
     // ---- intro: six disjoint sets ---------------------------------------
@@ -79,7 +86,10 @@ fn main() {
         cascade.push(Clip::from(act().fade_in(&node(i)).dur(0.3)).shift(0.08 * i as f32));
     }
     m.play(Clip::par(cascade));
-    m.play(act().set_text("caption", "6 elements, 6 disjoint sets — every node is its own root"));
+    m.play(act().set_text(
+        "caption",
+        "6 elements, 6 disjoint sets — every node is its own root",
+    ));
     m.wait(1.2);
 
     // ---- unions (arrow = parent pointer) ---------------------------------
@@ -88,18 +98,34 @@ fn main() {
     union(&mut m, 2, 3, "union(2, 3)  →  parent[2] = 3");
     union(&mut m, 1, 3, "union(1, 3)  →  parent[1] = 3");
     union(&mut m, 4, 5, "union(4, 5)  →  parent[4] = 5");
-    union(&mut m, 3, 5, "union(3, 5)  →  parent[3] = 5   (one tree, root 5)");
+    union(
+        &mut m,
+        3,
+        5,
+        "union(3, 5)  →  parent[3] = 5   (one tree, root 5)",
+    );
     m.wait(0.5);
 
     // ---- re-layout into the tree shape -----------------------------------
     m.play(act().set_text("caption", "same pointers, drawn as the tree they form"));
     let mut moves: Vec<Clip> = (0..N)
-        .map(|i| act().move_to(&node(i), tree_pos(i)).dur(0.9).ease(InOutCubic).into())
+        .map(|i| {
+            act()
+                .move_to(&node(i), tree_pos(i))
+                .dur(0.9)
+                .ease(InOutCubic)
+                .into()
+        })
         .collect();
-    // arrows follow their child automatically; their heads must chase the
-    // parent's new position in the same breath
+    // arrow tails follow the child; heads must chase the moving parent
     for (child, parent) in [(0usize, 1usize), (1, 3), (2, 3), (3, 5), (4, 5)] {
-        moves.push(act().grow_to(&parrow(child), tree_pos(parent)).dur(0.9).ease(InOutCubic).into());
+        moves.push(
+            act()
+                .grow_to(&parrow(child), tree_pos(parent))
+                .dur(0.9)
+                .ease(InOutCubic)
+                .into(),
+        );
     }
     m.play(Clip::par(moves));
     m.wait(1.0);
@@ -119,17 +145,34 @@ fn main() {
     }
     m.play(par![
         act().color_to(&node(5), ACCENT).dur(0.3),
-        act().color_to(&format!("{}.label", node(5)), PAPER).dur(0.3),
+        act()
+            .color_to(&format!("{}.label", node(5)), PAPER)
+            .dur(0.3),
         act().pulse(&node(5)).dur(0.6),
     ]);
-    m.play(act().set_text("caption", "root found. now compress: point every visited node at the root"));
+    m.play(act().set_text(
+        "caption",
+        "root found. now compress: point every visited node at the root",
+    ));
     m.wait(0.8);
 
     m.play(par![
-        act().move_to(&node(0), v(200.0, 390.0)).dur(0.8).ease(InOutCubic),
-        act().move_to(&node(1), v(320.0, 390.0)).dur(0.8).ease(InOutCubic),
-        act().retarget(&parrow(0), tree_pos(5)).dur(0.8).ease(InOutCubic),
-        act().retarget(&parrow(1), tree_pos(5)).dur(0.8).ease(InOutCubic),
+        act()
+            .move_to(&node(0), v(200.0, 390.0))
+            .dur(0.8)
+            .ease(InOutCubic),
+        act()
+            .move_to(&node(1), v(320.0, 390.0))
+            .dur(0.8)
+            .ease(InOutCubic),
+        act()
+            .retarget(&parrow(0), tree_pos(5))
+            .dur(0.8)
+            .ease(InOutCubic),
+        act()
+            .retarget(&parrow(1), tree_pos(5))
+            .dur(0.8)
+            .ease(InOutCubic),
     ]);
     m.play(par![
         act().pulse(&node(0)).dur(0.5),
