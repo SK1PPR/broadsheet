@@ -1,3 +1,4 @@
 /target
 /renders
 Cargo.lock
+.DS_Store
