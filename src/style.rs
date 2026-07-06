@@ -21,8 +21,8 @@ pub const FADED: Color = Color::new(0.541, 0.514, 0.459, 1.0);
 pub const PAPER_SHADE: Color = Color::new(0.914, 0.898, 0.847, 1.0);
 
 /// Masthead line printed at the top of every frame.
-pub const MASTHEAD_LEFT: &str = "SYSTEMS · WEEKLY";
-pub const MASTHEAD_RIGHT: &str = "PRICE: ONE STAR";
+pub const MASTHEAD_LEFT: &str = "THE BROADSHEET";
+pub const MASTHEAD_RIGHT: &str = "SPECIAL EDITION";
 
 /// Loaded font set. `None` fields fall back to macroquad's built-in font.
 pub struct Fonts {

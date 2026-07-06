@@ -12,8 +12,8 @@ is defined once in `src/style.rs`.
 ## Run the examples
 
 ```sh
-cargo run --example bloom_filter    # live preview window
-cargo run --example union_find
+cargo run --example features_demo    # live preview window
+cargo run --example lsm_tree
 ```
 
 Live transport controls (for lining narration up with beats):
@@ -33,7 +33,7 @@ The HUD shows exact `t` and frame number; it is never present in recordings.
 ## Record a video
 
 ```sh
-cargo run --example bloom_filter -- --record out/bloom --fps 60
+cargo run --example features_demo -- --record out/showcase --fps 60
 ```
 
 Renders at a fixed timestep (`t = frame / fps`, wall clock ignored → output
@@ -41,11 +41,11 @@ is deterministic), then pipes raw RGBA frames straight into ffmpeg when it is
 installed:
 
 ```sh
-out/bloom/out.mp4
+out/showcase/out.mp4
 ```
 
 If ffmpeg is missing, or if you pass `--png`, it writes
-`out/bloom/frame_00000.png …` and prints the exact stitch command.
+`out/showcase/frame_00000.png …` and prints the exact stitch command.
 Recording supersamples at `--scale 1.5` by default, so the 1280×720 logical
 canvas comes out as true 1920×1080 with fonts rasterized at full resolution
 (pass `--scale 2` for 1440p). Everything is drawn with 4× MSAA.

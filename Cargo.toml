@@ -1,6 +1,6 @@
 [package]
 name = "broadsheet"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 description = "Newspaper-styled 2D animation engine for algorithm & data-structure explainer videos — stateless timeline, deterministic frame recording, built on macroquad"
 license = "MIT"
