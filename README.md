@@ -4,8 +4,8 @@ A 2D animation engine for algorithm & data-structure explainer videos, in
 Rust on [macroquad]. Newspaper-styled, deterministic, code-driven.
 
 Every render looks like a page from the same broadsheet: off-white paper,
-ink strokes, one spot color, serif headlines, mono data. That's the channel's
-visual identity — defined once in `src/style.rs`.
+ink strokes, one spot color, serif headlines, mono data. The visual identity
+is defined once in `src/style.rs`.
 
 [macroquad]: https://github.com/not-fl3/macroquad
 
@@ -112,4 +112,4 @@ Palette: `INK`, `PAPER`, `ACCENT` (newsprint red), `BLUE`, `FADED`,
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) — module map, the statelessness
 invariant, and step-by-step recipes for adding a primitive or a verb
-(the two things a weekly video occasionally needs).
+(the two extension points most movies eventually need).
