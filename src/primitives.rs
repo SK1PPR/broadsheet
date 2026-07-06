@@ -1,0 +1,116 @@
+//! Drawable primitives: the [`Entity`] struct and its [`Shape`] variants.
+//!
+//! Composition over hierarchy: there is exactly one entity type, and what it
+//! looks like is data (`Shape`), not a trait object. To add a new primitive,
+//! add a `Shape` variant here and a match arm in `render::draw_entity` —
+//! nothing else in the engine needs to know.
+
+use macroquad::prelude::{Color, Vec2};
+
+/// What an [`Entity`] looks like. Positions inside a shape (e.g. `to`,
+/// polygon points) are in absolute scene coordinates; `Entity::pos` is added
+/// as an offset for polygons and is the anchor/centre for everything else.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Shape {
+    /// Circle centred on `pos`.
+    Circle { r: f32 },
+    /// Rectangle centred on `pos`.
+    Rect { w: f32, h: f32 },
+    /// Line from `pos` to `to` (absolute).
+    Line { to: Vec2 },
+    /// Arrow from `pos` to `to` (absolute), with a triangular head at `to`.
+    Arrow { to: Vec2 },
+    /// Filled/outlined polygon. Points are absolute; `pos` is added as an
+    /// offset so the whole polygon can be moved by animating `pos`.
+    Polygon { pts: Vec<Vec2> },
+    /// Text centred on `pos`.
+    Text { content: String, size: f32 },
+}
+
+/// Which font family to render a [`Shape::Text`] with.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum FontKind {
+    /// Serif display face (Playfair Display) — headlines, section cards.
+    Serif,
+    /// Monospace (IBM Plex Mono) — labels, captions, data.
+    #[default]
+    Mono,
+    /// Bold monospace — emphasised labels.
+    MonoBold,
+}
+
+/// Fill/outline styling. The newspaper look leans on outlines, so both fill
+/// and outline can be on at once, with an independent outline color.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct StrokeStyle {
+    /// Fill the shape with `Entity::color`.
+    pub fill: bool,
+    /// Draw the outline.
+    pub outline: bool,
+    /// Outline thickness in pixels.
+    pub width: f32,
+    /// Outline color override. `None` = use `Entity::color`.
+    pub outline_color: Option<Color>,
+}
+
+impl Default for StrokeStyle {
+    fn default() -> Self {
+        StrokeStyle { fill: true, outline: false, width: 2.5, outline_color: None }
+    }
+}
+
+/// One drawable object in a [`crate::scene::Scene`].
+///
+/// All animatable state lives in plain fields here; the timeline mutates a
+/// per-frame clone of the scene, never your base definition.
+#[derive(Debug, Clone)]
+pub struct Entity {
+    /// Unique id within the scene. Animations address entities by this.
+    pub id: String,
+    pub shape: Shape,
+    /// Anchor position (centre for circles/rects/text, tail for lines/arrows,
+    /// offset for polygons). 2D today; all rendering goes through
+    /// `render::project` so a 3D upgrade only touches that one seam.
+    pub pos: Vec2,
+    /// Primary color (fill, or stroke when there is no fill).
+    pub color: Color,
+    /// 0.0 = invisible, 1.0 = opaque. Multiplied into all colors at draw time.
+    pub opacity: f32,
+    /// Uniform scale about `pos`.
+    pub scale: f32,
+    /// Draw order: higher `z` draws on top.
+    pub z: i32,
+    pub stroke: StrokeStyle,
+    /// Font for `Shape::Text`.
+    pub font: FontKind,
+    /// Rotation in degrees, applied to text only (used for e.g. stamps).
+    pub rot: f32,
+    /// Max text width in logical pixels; longer text word-wraps into
+    /// centred lines. `None` = single line. Text only.
+    pub wrap: Option<f32>,
+    /// If set, this entity's `pos` is `pos_of(other) + offset` every frame,
+    /// and its opacity is multiplied by the followed entity's opacity.
+    /// Used for labels that ride on nodes.
+    pub follow: Option<(String, Vec2)>,
+}
+
+impl Entity {
+    /// A new entity with engine defaults (opaque, scale 1, z 0, ink handled
+    /// by the caller — color must be set explicitly or via the scene builder).
+    pub fn new(id: impl Into<String>, shape: Shape, pos: Vec2, color: Color) -> Self {
+        Entity {
+            id: id.into(),
+            shape,
+            pos,
+            color,
+            opacity: 1.0,
+            scale: 1.0,
+            z: 0,
+            stroke: StrokeStyle::default(),
+            font: FontKind::default(),
+            rot: 0.0,
+            wrap: None,
+            follow: None,
+        }
+    }
+}

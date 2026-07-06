@@ -1,0 +1,29 @@
+[package]
+name = "broadsheet"
+version = "0.1.0"
+edition = "2021"
+description = "Newspaper-styled 2D animation engine for algorithm & data-structure explainer videos — stateless timeline, deterministic frame recording, built on macroquad"
+license = "MIT"
+authors = ["Khushal Agrawal <dev@khushal.net>"]
+readme = "README.md"
+keywords = ["animation", "visualization", "macroquad", "explainer", "algorithms"]
+categories = ["graphics", "multimedia::video", "visualization"]
+repository = "https://github.com/SK1PPR/broadsheet"
+include = [
+    "src/**",
+    "examples/**",
+    "assets/fonts/*",
+    "README.md",
+    "ARCHITECTURE.md",
+    "LICENSE",
+    "LICENSE-FONTS",
+]
+
+[dependencies]
+macroquad = "0.4"
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 2
