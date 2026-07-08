@@ -25,9 +25,49 @@
 use macroquad::prelude::*;
 
 use crate::movie::Movie;
+#[cfg(not(target_arch = "wasm32"))]
 use crate::record::Recorder;
 use crate::render::{self, View};
 use crate::style::{self, Fonts};
+
+/// JS interop for web builds. miniquad's `mq_js_bundle.js` exposes these as
+/// `wasm_exports.bs_*`, letting the host page drive the stateless timeline
+/// (scroll-scrub, play/pause) without any bindgen layer.
+#[cfg(target_arch = "wasm32")]
+mod web {
+    use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+
+    // f32s smuggled through AtomicU32 bit patterns; NaN = "no seek pending".
+    pub static SEEK_BITS: AtomicU32 = AtomicU32::new(u32::MAX);
+    pub static TIME_BITS: AtomicU32 = AtomicU32::new(0);
+    pub static DUR_BITS: AtomicU32 = AtomicU32::new(0);
+    pub static PAUSED: AtomicBool = AtomicBool::new(true);
+
+    pub fn take_seek() -> Option<f32> {
+        let t = f32::from_bits(SEEK_BITS.swap(u32::MAX, Ordering::Relaxed));
+        (!t.is_nan()).then_some(t)
+    }
+
+    #[no_mangle]
+    pub extern "C" fn bs_seek(t: f32) {
+        SEEK_BITS.store(t.to_bits(), Ordering::Relaxed);
+    }
+
+    #[no_mangle]
+    pub extern "C" fn bs_set_paused(p: i32) {
+        PAUSED.store(p != 0, Ordering::Relaxed);
+    }
+
+    #[no_mangle]
+    pub extern "C" fn bs_duration() -> f32 {
+        f32::from_bits(DUR_BITS.load(Ordering::Relaxed))
+    }
+
+    #[no_mangle]
+    pub extern "C" fn bs_time() -> f32 {
+        f32::from_bits(TIME_BITS.load(Ordering::Relaxed))
+    }
+}
 
 pub(crate) struct Opts {
     pub record: Option<String>,
@@ -233,7 +273,12 @@ pub async fn run_loop(movie: Movie) {
         }
     };
 
+    // capture feeds the still/record paths, which don't exist on web
+    #[cfg(target_arch = "wasm32")]
+    let _ = &capture;
+
     // ---- single still frame ----
+    #[cfg(not(target_arch = "wasm32"))]
     if let Some(ts) = opts.still {
         render_canvas(ts);
         next_frame().await;
@@ -245,6 +290,7 @@ pub async fn run_loop(movie: Movie) {
     }
 
     // ---- offline record ----
+    #[cfg(not(target_arch = "wasm32"))]
     if let Some(dir) = opts.record.clone() {
         let mut rec = Recorder::new(
             &dir,
@@ -269,13 +315,28 @@ pub async fn run_loop(movie: Movie) {
         std::process::exit(0);
     }
 
+    #[cfg(target_arch = "wasm32")]
+    web::DUR_BITS.store(timeline.dur.to_bits(), std::sync::atomic::Ordering::Relaxed);
+
     // ---- live preview ----
     let mut t: f32 = 0.0;
-    let mut paused = false;
+    // web builds start paused; the host page drives playback
+    let mut paused = cfg!(target_arch = "wasm32");
     let mut fullscreen = false;
     let frame_dt = 1.0 / opts.fps as f32;
 
     loop {
+        // page-driven controls: the atomics are authoritative at frame start,
+        // local key handling below may still flip `paused` for this frame
+        #[cfg(target_arch = "wasm32")]
+        {
+            use std::sync::atomic::Ordering;
+            paused = web::PAUSED.load(Ordering::Relaxed);
+            if let Some(st) = web::take_seek() {
+                t = st;
+            }
+        }
+
         if fullscreen_pressed() {
             fullscreen = !fullscreen;
             set_fullscreen(fullscreen);
@@ -327,10 +388,16 @@ pub async fn run_loop(movie: Movie) {
             t = (mx / sw).clamp(0.0, 1.0) * timeline.dur;
         }
 
+        #[cfg(target_arch = "wasm32")]
+        web::PAUSED.store(paused, std::sync::atomic::Ordering::Relaxed);
+
         if !paused {
             t += get_frame_time();
         }
         t = t.clamp(0.0, timeline.dur);
+
+        #[cfg(target_arch = "wasm32")]
+        web::TIME_BITS.store(t.to_bits(), std::sync::atomic::Ordering::Relaxed);
 
         render_canvas(t);
 
@@ -357,38 +424,41 @@ pub async fn run_loop(movie: Movie) {
             gl_use_default_material();
         }
 
-        // ---- HUD (never recorded) ----
-        draw_rectangle(0.0, bar_y, sw, 26.0, style::with_opacity(style::INK, 0.85));
-        draw_rectangle(0.0, bar_y, sw * (t / timeline.dur), 3.0, style::ACCENT);
-        for (st, _) in &movie.sections {
-            draw_rectangle(
-                sw * (st / timeline.dur) - 1.0,
-                bar_y,
-                2.0,
-                8.0,
-                style::PAPER,
+        // ---- HUD (never recorded, never on web — the page is the chrome) ----
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            draw_rectangle(0.0, bar_y, sw, 26.0, style::with_opacity(style::INK, 0.85));
+            draw_rectangle(0.0, bar_y, sw * (t / timeline.dur), 3.0, style::ACCENT);
+            for (st, _) in &movie.sections {
+                draw_rectangle(
+                    sw * (st / timeline.dur) - 1.0,
+                    bar_y,
+                    2.0,
+                    8.0,
+                    style::PAPER,
+                );
+            }
+            let frame_no = (t * opts.fps as f32).round() as u32;
+            let hud = format!(
+                "{}  t={:6.2}s  frame={:5}  [space] play/pause  [</>] step  [,/.] +/-1s  [1-9] sections  [F/Ctrl+Cmd+F] fullscreen  [R] restart",
+                if paused { "PAUSED " } else { "PLAYING" },
+                t,
+                frame_no
+            );
+            draw_text_ex(
+                &hud,
+                10.0,
+                bar_y + 18.0,
+                TextParams {
+                    font: fonts.mono.as_ref(),
+                    font_size: 13,
+                    font_scale: 1.0,
+                    font_scale_aspect: 1.0,
+                    rotation: 0.0,
+                    color: style::PAPER,
+                },
             );
         }
-        let frame_no = (t * opts.fps as f32).round() as u32;
-        let hud = format!(
-            "{}  t={:6.2}s  frame={:5}  [space] play/pause  [</>] step  [,/.] +/-1s  [1-9] sections  [F/Ctrl+Cmd+F] fullscreen  [R] restart",
-            if paused { "PAUSED " } else { "PLAYING" },
-            t,
-            frame_no
-        );
-        draw_text_ex(
-            &hud,
-            10.0,
-            bar_y + 18.0,
-            TextParams {
-                font: fonts.mono.as_ref(),
-                font_size: 13,
-                font_scale: 1.0,
-                font_scale_aspect: 1.0,
-                rotation: 0.0,
-                color: style::PAPER,
-            },
-        );
 
         next_frame().await;
     }

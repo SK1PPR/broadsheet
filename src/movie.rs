@@ -176,12 +176,15 @@ impl Movie {
 
     /// Fade out every entity currently declared (a "clear the stage" scene
     /// change). Entities declared *after* this call are unaffected.
+    /// Followers are skipped: their opacity already rides the followed
+    /// entity, so fading them here would leave them stuck invisible after
+    /// the parent fades back in.
     pub fn clear_all(&mut self, dur: f32) {
         let ids: Vec<String> = self
             .scene
             .entities
             .iter()
-            .filter(|e| !e.id.starts_with("__"))
+            .filter(|e| !e.id.starts_with("__") && e.follow.is_none())
             .map(|e| e.id.clone())
             .collect();
         let clips: Vec<Clip> = ids

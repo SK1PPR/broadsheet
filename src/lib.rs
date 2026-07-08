@@ -65,6 +65,7 @@ pub mod layout;
 pub mod movie;
 pub mod player;
 pub mod primitives;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod record;
 pub mod render;
 pub mod scene;
@@ -83,7 +84,9 @@ pub fn v(x: f32, y: f32) -> Vec2 {
 /// Call this from a plain `fn main()` — no macroquad attribute needed.
 pub fn run(movie: movie::Movie) {
     let opts = player::parse_opts();
-    let conf = macroquad::window::Conf {
+    // `mut` is used only by the wasm-only WebGL2 override below
+    #[allow(unused_mut)]
+    let mut conf = macroquad::window::Conf {
         window_title: movie.title.clone(),
         window_width: (movie.width as f32 * opts.scale) as i32,
         window_height: (movie.height as f32 * opts.scale) as i32,
@@ -93,6 +96,13 @@ pub fn run(movie: movie::Movie) {
         sample_count: 4,
         ..Default::default()
     };
+    // MSAA render-target resolve needs glReadBuffer/glBlitFramebuffer, which
+    // only exist in WebGL2. miniquad defaults to WebGL1, so request WebGL2 on
+    // the web or the offscreen target readback throws at the first frame.
+    #[cfg(target_arch = "wasm32")]
+    {
+        conf.platform.webgl_version = macroquad::miniquad::conf::WebGLVersion::WebGL2;
+    }
     macroquad::Window::from_config(conf, player::run_loop(movie));
 }
 
