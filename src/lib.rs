@@ -99,12 +99,10 @@ pub fn run(movie: movie::Movie) {
     // MSAA render-target resolve needs glReadBuffer/glBlitFramebuffer, which
     // only exist in WebGL2. miniquad defaults to WebGL1, so request WebGL2 on
     // the web or the offscreen target readback throws at the first frame.
-    // high_dpi keeps the canvas crisp on retina; framebuffer_alpha lets the
-    // transparent animation blend into the surrounding page.
+    // high_dpi keeps the canvas crisp on retina displays.
     #[cfg(target_arch = "wasm32")]
     {
         conf.platform.webgl_version = macroquad::miniquad::conf::WebGLVersion::WebGL2;
-        conf.platform.framebuffer_alpha = true;
         conf.high_dpi = true;
     }
     macroquad::Window::from_config(conf, player::run_loop(movie));

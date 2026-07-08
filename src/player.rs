@@ -81,6 +81,8 @@ pub(crate) struct Opts {
     pub png: bool,
     pub gif: bool,
     pub grain: bool,
+    /// Opaque paper background with no page chrome (web embedding).
+    pub bare: bool,
 }
 
 pub(crate) fn parse_opts() -> Opts {
@@ -97,6 +99,7 @@ pub(crate) fn parse_opts() -> Opts {
         png: false,
         gif: false,
         grain: false,
+        bare: false,
     };
     let mut i = 1;
     let value = |args: &[String], i: usize, flag: &str| -> String {
@@ -206,11 +209,12 @@ pub async fn run_loop(movie: Movie) {
     #[allow(unused_mut)]
     let mut opts = parse_opts();
     // On the web the page supplies its own chrome (masthead, rules, framing),
-    // so render the animation transparent with no page chrome — the canvas
-    // then blends seamlessly into the surrounding article.
+    // so render an opaque paper background with no chrome. Opaque (not
+    // transparent) keeps it seamless without depending on canvas alpha
+    // compositing, which is inconsistent across browsers.
     #[cfg(target_arch = "wasm32")]
     {
-        opts.alpha = true;
+        opts.bare = true;
     }
     let (w, h) = (movie.width as f32, movie.height as f32);
     let s = opts.scale;
@@ -254,6 +258,10 @@ pub async fn run_loop(movie: Movie) {
         let view = View::from_scene(&scene, w, h, s);
         if opts.alpha {
             clear_background(Color::new(0.0, 0.0, 0.0, 0.0));
+        } else if opts.bare {
+            // web: paper background only, no masthead/border — the surrounding
+            // page supplies the chrome, so the canvas blends into the article
+            clear_background(style::PAPER);
         } else {
             render::draw_page_chrome(&movie.title, w, h, &fonts, &view);
         }
@@ -415,9 +423,9 @@ pub async fn run_loop(movie: Movie) {
 
         // blit to window: fit, centred, letterboxed
         set_default_camera();
-        // web: transparent letterbox so the page shows through; native: ink bars
+        // web: paper letterbox so bars match the page; native: ink bars
         #[cfg(target_arch = "wasm32")]
-        clear_background(style::with_opacity(style::INK, 0.0));
+        clear_background(style::PAPER);
         #[cfg(not(target_arch = "wasm32"))]
         clear_background(style::INK);
         let fit = (sw / pw).min(sh / ph);
