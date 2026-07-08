@@ -155,7 +155,11 @@ pub(crate) fn parse_opts() -> Opts {
         i += 1;
     }
     if opts.scale <= 0.0 {
-        opts.scale = if opts.record.is_some() || opts.still.is_some() {
+        // web renders into a high-DPI canvas: supersample so it stays crisp
+        // on retina displays instead of upscaling a 1x target.
+        opts.scale = if cfg!(target_arch = "wasm32") {
+            2.0
+        } else if opts.record.is_some() || opts.still.is_some() {
             1.5
         } else {
             1.0
@@ -199,7 +203,15 @@ fn fullscreen_pressed() -> bool {
 pub async fn run_loop(movie: Movie) {
     let fonts = Fonts::load();
     let (base, timeline) = movie.finalize();
-    let opts = parse_opts();
+    #[allow(unused_mut)]
+    let mut opts = parse_opts();
+    // On the web the page supplies its own chrome (masthead, rules, framing),
+    // so render the animation transparent with no page chrome — the canvas
+    // then blends seamlessly into the surrounding article.
+    #[cfg(target_arch = "wasm32")]
+    {
+        opts.alpha = true;
+    }
     let (w, h) = (movie.width as f32, movie.height as f32);
     let s = opts.scale;
     let (pw, ph) = ((w * s).round(), (h * s).round());
@@ -403,6 +415,10 @@ pub async fn run_loop(movie: Movie) {
 
         // blit to window: fit, centred, letterboxed
         set_default_camera();
+        // web: transparent letterbox so the page shows through; native: ink bars
+        #[cfg(target_arch = "wasm32")]
+        clear_background(style::with_opacity(style::INK, 0.0));
+        #[cfg(not(target_arch = "wasm32"))]
         clear_background(style::INK);
         let fit = (sw / pw).min(sh / ph);
         let (dw, dh) = (pw * fit, ph * fit);
