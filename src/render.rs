@@ -156,7 +156,13 @@ fn draw_stroke_path(pts: &[Vec2], frac: f32, width: f32, color: Color, arrow: bo
 
 // ---- text -------------------------------------------------------------------
 
-fn wrap_lines(text: &str, font: Option<&Font>, font_size: u16, max_w: f32) -> Vec<String> {
+fn wrap_lines(
+    text: &str,
+    font: Option<&Font>,
+    font_size: u16,
+    font_scale: f32,
+    max_w: f32,
+) -> Vec<String> {
     let mut lines: Vec<String> = Vec::new();
     let mut cur = String::new();
     for word in text.split_whitespace() {
@@ -165,7 +171,7 @@ fn wrap_lines(text: &str, font: Option<&Font>, font_size: u16, max_w: f32) -> Ve
         } else {
             format!("{cur} {word}")
         };
-        if !cur.is_empty() && measure_text(&cand, font, font_size, 1.0).width > max_w {
+        if !cur.is_empty() && measure_text(&cand, font, font_size, font_scale).width > max_w {
             lines.push(std::mem::take(&mut cur));
             cur = word.to_string();
         } else {
@@ -183,11 +189,17 @@ fn wrap_lines(text: &str, font: Option<&Font>, font_size: u16, max_w: f32) -> Ve
 
 /// Draw text at `pos` (physical pixels, physical `size`). Handles wrapping,
 /// alignment, rotation and typewriter `trace`.
+///
+/// `raster` is the size the glyphs are rasterized at; the remaining factor up
+/// to `size` is applied as a smooth vertex scale. Keeping `raster` constant
+/// while the camera zooms (pass logical size × supersampling) avoids the
+/// per-frame re-rasterization that makes text jitter during zooms.
 #[allow(clippy::too_many_arguments)]
 pub fn draw_text_block(
     text: &str,
     pos: Vec2,
     size: f32,
+    raster: f32,
     color: Color,
     font: Option<&Font>,
     rot_deg: f32,
@@ -195,9 +207,10 @@ pub fn draw_text_block(
     align: Align,
     trace: f32,
 ) {
-    let font_size = size.max(1.0).round() as u16;
+    let font_size = raster.max(1.0).round() as u16;
+    let font_scale = size.max(0.01) / font_size as f32;
     let lines = match wrap {
-        Some(w) => wrap_lines(text, font, font_size, w),
+        Some(w) => wrap_lines(text, font, font_size, font_scale, w),
         None => vec![text.to_string()],
     };
     let total_chars: usize = lines.iter().map(|l| l.chars().count()).sum();
@@ -225,12 +238,12 @@ pub fn draw_text_block(
         let x = match align {
             Align::Center => {
                 // anchor on the full line so typing doesn't shift the block
-                let full = measure_text(line, font, font_size, 1.0);
+                let full = measure_text(line, font, font_size, font_scale);
                 pos.x - full.width / 2.0
             }
             Align::Left => pos.x,
         };
-        let dims = measure_text(&shown, font, font_size, 1.0);
+        let dims = measure_text(&shown, font, font_size, font_scale);
         draw_text_ex(
             &shown,
             x,
@@ -238,7 +251,7 @@ pub fn draw_text_block(
             TextParams {
                 font,
                 font_size,
-                font_scale: 1.0,
+                font_scale,
                 font_scale_aspect: 1.0,
                 rotation: rot_deg.to_radians(),
                 color,
@@ -325,10 +338,13 @@ pub fn draw_entity(e: &Entity, fonts: &Fonts, view: &View) {
             }
         }
         Shape::Text { content, size } => {
+            // rasterize at the zoom-independent size so camera zooms and
+            // pulses scale glyphs smoothly instead of re-rasterizing
             draw_text_block(
                 content,
                 p,
                 size * e.scale * k,
+                size * view.ss,
                 stroke_c,
                 font_of(fonts, e.font),
                 e.rot,
@@ -375,6 +391,7 @@ pub fn draw_page_chrome(title: &str, w: f32, h: f32, fonts: &Fonts, view: &View)
         &title_upper,
         view.xform(Vec2::new(w / 2.0, 58.0)),
         40.0 * k,
+        40.0 * view.ss,
         style::INK,
         fonts.serif.as_ref(),
         0.0,
@@ -383,7 +400,8 @@ pub fn draw_page_chrome(title: &str, w: f32, h: f32, fonts: &Fonts, view: &View)
         1.0,
     );
     if let Some(mono) = fonts.mono.as_ref() {
-        let fs = (14.0 * k).round() as u16;
+        let fs = (14.0 * view.ss).round() as u16;
+        let fscale = 14.0 * k / fs as f32;
         let left = view.xform(Vec2::new(44.0, 62.0));
         draw_text_ex(
             style::MASTHEAD_LEFT,
@@ -392,13 +410,13 @@ pub fn draw_page_chrome(title: &str, w: f32, h: f32, fonts: &Fonts, view: &View)
             TextParams {
                 font: Some(mono),
                 font_size: fs,
-                font_scale: 1.0,
+                font_scale: fscale,
                 font_scale_aspect: 1.0,
                 rotation: 0.0,
                 color: style::FADED,
             },
         );
-        let rdims = measure_text(style::MASTHEAD_RIGHT, Some(mono), fs, 1.0);
+        let rdims = measure_text(style::MASTHEAD_RIGHT, Some(mono), fs, fscale);
         let right = view.xform(Vec2::new(w - 44.0, 62.0));
         draw_text_ex(
             style::MASTHEAD_RIGHT,
@@ -407,7 +425,7 @@ pub fn draw_page_chrome(title: &str, w: f32, h: f32, fonts: &Fonts, view: &View)
             TextParams {
                 font: Some(mono),
                 font_size: fs,
-                font_scale: 1.0,
+                font_scale: fscale,
                 font_scale_aspect: 1.0,
                 rotation: 0.0,
                 color: style::FADED,
