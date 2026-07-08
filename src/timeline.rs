@@ -192,8 +192,7 @@ fn set_prop(scene: &mut Scene, id: &str, prop: Prop, v: Value) {
         (Prop::Scale, Value::F(s)) => e.scale = s,
         (Prop::Trace, Value::F(f)) => e.trace = f,
         (Prop::To, Value::V(p)) => {
-            if let Shape::Line { to } | Shape::Arrow { to } | Shape::Curve { to, .. } =
-                &mut e.shape
+            if let Shape::Line { to } | Shape::Arrow { to } | Shape::Curve { to, .. } = &mut e.shape
             {
                 *to = p;
             }

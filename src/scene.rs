@@ -129,7 +129,11 @@ impl<'a> SceneBuilder<'a> {
         let ctrl = mid + perp * bend;
         self.push(Entity::new(
             id,
-            Shape::Curve { ctrl, to, arrow: false },
+            Shape::Curve {
+                ctrl,
+                to,
+                arrow: false,
+            },
             from,
             style::INK,
         ))

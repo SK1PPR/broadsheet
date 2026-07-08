@@ -25,7 +25,12 @@ impl View {
     /// Identity camera at supersampling factor `ss` for a `w`×`h` canvas.
     pub fn neutral(w: f32, h: f32, ss: f32) -> View {
         let center = Vec2::new(w / 2.0, h / 2.0);
-        View { ss, cam: center, zoom: 1.0, center }
+        View {
+            ss,
+            cam: center,
+            zoom: 1.0,
+            center,
+        }
     }
 
     /// Read the camera pose from the scene's `"__cam"` entity, if present.
@@ -50,7 +55,7 @@ impl View {
     }
 }
 
-fn font_of<'a>(fonts: &'a Fonts, kind: FontKind) -> Option<&'a Font> {
+fn font_of(fonts: &Fonts, kind: FontKind) -> Option<&Font> {
     match kind {
         FontKind::Serif => fonts.serif.as_ref(),
         FontKind::Mono => fonts.mono.as_ref(),
@@ -315,7 +320,13 @@ pub fn draw_entity(e: &Entity, fonts: &Fonts, view: &View) {
             draw_path(&[p, view.xform(*to)], trace, width * e.scale, stroke_c);
         }
         Shape::Arrow { to } => {
-            draw_stroke_path(&[p, view.xform(*to)], trace, width * e.scale, stroke_c, true);
+            draw_stroke_path(
+                &[p, view.xform(*to)],
+                trace,
+                width * e.scale,
+                stroke_c,
+                true,
+            );
         }
         Shape::Curve { ctrl, to, arrow } => {
             let pts = bezier_pts(p, view.xform(*ctrl), view.xform(*to), 32);
@@ -360,10 +371,18 @@ pub fn draw_entity(e: &Entity, fonts: &Fonts, view: &View) {
 pub fn draw_scene(scene: &Scene, fonts: &Fonts, view: &View) {
     let mut order: Vec<usize> = (0..scene.entities.len()).collect();
     order.sort_by_key(|&i| scene.entities[i].z);
-    let sticky_view = View { cam: view.center, zoom: 1.0, ..*view };
+    let sticky_view = View {
+        cam: view.center,
+        zoom: 1.0,
+        ..*view
+    };
     for i in order {
         let entity = &scene.entities[i];
-        draw_entity(entity, fonts, if entity.sticky { &sticky_view } else { view });
+        draw_entity(
+            entity,
+            fonts,
+            if entity.sticky { &sticky_view } else { view },
+        );
     }
 }
 
@@ -433,6 +452,16 @@ pub fn draw_page_chrome(title: &str, w: f32, h: f32, fonts: &Fonts, view: &View)
         );
     }
 
-    line(Vec2::new(40.0, 88.0), Vec2::new(w - 40.0, 88.0), 2.5, style::INK);
-    line(Vec2::new(40.0, 93.0), Vec2::new(w - 40.0, 93.0), 1.0, style::INK);
+    line(
+        Vec2::new(40.0, 88.0),
+        Vec2::new(w - 40.0, 88.0),
+        2.5,
+        style::INK,
+    );
+    line(
+        Vec2::new(40.0, 93.0),
+        Vec2::new(w - 40.0, 93.0),
+        1.0,
+        style::INK,
+    );
 }

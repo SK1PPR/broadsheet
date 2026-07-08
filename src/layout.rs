@@ -21,10 +21,7 @@ pub fn grid(cols: usize, rows: usize, min: Vec2, max: Vec2) -> Vec<Vec2> {
     (0..rows)
         .flat_map(|r| {
             (0..cols).map(move |c| {
-                Vec2::new(
-                    min.x + cw * (c as f32 + 0.5),
-                    min.y + ch * (r as f32 + 0.5),
-                )
+                Vec2::new(min.x + cw * (c as f32 + 0.5), min.y + ch * (r as f32 + 0.5))
             })
         })
         .collect()

@@ -329,8 +329,14 @@ fn build_clip(b: ActBuilder) -> Clip {
             ));
         }
         Verb::TraceTo(id, f) => {
-            clip.tracks
-                .push(track(&id, Prop::Trace, TargetValue::Abs(Value::F(f)), 0.0, d, e));
+            clip.tracks.push(track(
+                &id,
+                Prop::Trace,
+                TargetValue::Abs(Value::F(f)),
+                0.0,
+                d,
+                e,
+            ));
         }
         Verb::SetText(id, text) => {
             clip.tracks.push(track(

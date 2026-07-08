@@ -14,15 +14,25 @@ fn main() {
     {
         let mut s = m.scene();
 
-        s.text("type", v(120.0, 150.0), "every tool in one demo — typed in, of course")
-            .left()
-            .size(24.0)
-            .untraced();
+        s.text(
+            "type",
+            v(120.0, 150.0),
+            "every tool in one demo — typed in, of course",
+        )
+        .left()
+        .size(24.0)
+        .untraced();
 
         s.code_block(
             "code",
             v(120.0, 220.0),
-            &["fn find(x) {", "    while p[x] != x {", "        x = p[x];", "    }", "}"],
+            &[
+                "fn find(x) {",
+                "    while p[x] != x {",
+                "        x = p[x];",
+                "    }",
+                "}",
+            ],
             20.0,
         );
 
@@ -46,13 +56,20 @@ fn main() {
                 .untraced();
         }
 
-        s.text("caption", v(640.0, 660.0), "").size(20.0).color(FADED).wrap(1060.0).hidden();
+        s.text("caption", v(640.0, 660.0), "")
+            .size(20.0)
+            .color(FADED)
+            .wrap(1060.0)
+            .hidden();
     }
 
     // typewriter + code walkthrough
     m.play(act().type_in("type").dur(2.0));
     m.mark("code-walk");
-    m.play(act().set_text("caption", "code blocks: one entity per line, highlight any of them"));
+    m.play(act().set_text(
+        "caption",
+        "code blocks: one entity per line, highlight any of them",
+    ));
     m.play(seq![
         act().highlight("code.line1", ACCENT).dur(0.8),
         act().highlight("code.line2", ACCENT).dur(0.8),
@@ -60,7 +77,10 @@ fn main() {
     m.wait(0.5);
 
     // cells + stagger
-    m.play(act().set_text("caption", "cells() builds bit arrays in one call; stagger! cascades"));
+    m.play(act().set_text(
+        "caption",
+        "cells() builds bit arrays in one call; stagger! cascades",
+    ));
     m.play(stagger![
         0.08;
         act().color_to("bit2", ACCENT).dur(0.3),
@@ -88,7 +108,10 @@ fn main() {
 
     // camera: punch in on the ring, then back out
     m.mark("camera");
-    m.play(act().set_text("caption", "camera pan + zoom are just tracks on the __cam entity"));
+    m.play(act().set_text(
+        "caption",
+        "camera pan + zoom are just tracks on the __cam entity",
+    ));
     m.play(par![
         act().cam_to(v(880.0, 350.0)).dur(1.2).ease(InOutCubic),
         act().cam_zoom(1.55).dur(1.2).ease(InOutCubic),
@@ -100,8 +123,13 @@ fn main() {
     ]);
 
     // tags: clear the ring in one line
-    m.play(act().set_text("caption", "tags: fade a whole group without naming its members"));
-    m.play(all(&m.tagged("ringedges"), |id| act().trace_out(id).dur(0.4)));
+    m.play(act().set_text(
+        "caption",
+        "tags: fade a whole group without naming its members",
+    ));
+    m.play(all(&m.tagged("ringedges"), |id| {
+        act().trace_out(id).dur(0.4)
+    }));
     m.play(all(&m.tagged("ring"), |id| act().fade_out(id).dur(0.4)));
     m.wait(2.0);
 

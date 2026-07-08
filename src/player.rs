@@ -83,12 +83,19 @@ pub(crate) fn parse_opts() -> Opts {
                 i += 1;
             }
             "--frames" => {
-                opts.max_frames =
-                    Some(value(&args, i, "--frames").parse().expect("--frames: number"));
+                opts.max_frames = Some(
+                    value(&args, i, "--frames")
+                        .parse()
+                        .expect("--frames: number"),
+                );
                 i += 1;
             }
             "--still" => {
-                opts.still = Some(value(&args, i, "--still").parse().expect("--still: seconds"));
+                opts.still = Some(
+                    value(&args, i, "--still")
+                        .parse()
+                        .expect("--still: seconds"),
+                );
                 i += 1;
             }
             "--from" => {
@@ -177,7 +184,10 @@ pub async fn run_loop(movie: Movie) {
 
     let grain = if opts.grain {
         load_material(
-            ShaderSource::Glsl { vertex: GRAIN_VERT, fragment: GRAIN_FRAG },
+            ShaderSource::Glsl {
+                vertex: GRAIN_VERT,
+                fragment: GRAIN_FRAG,
+            },
             MaterialParams::default(),
         )
         .map_err(|e| eprintln!("grain shader failed to compile: {e}"))
@@ -209,7 +219,10 @@ pub async fn run_loop(movie: Movie) {
                 0.0,
                 0.0,
                 WHITE,
-                DrawTextureParams { dest_size: Some(vec2(pw, ph)), ..Default::default() },
+                DrawTextureParams {
+                    dest_size: Some(vec2(pw, ph)),
+                    ..Default::default()
+                },
             );
             gl_use_default_material();
             set_default_camera();
@@ -348,7 +361,13 @@ pub async fn run_loop(movie: Movie) {
         draw_rectangle(0.0, bar_y, sw, 26.0, style::with_opacity(style::INK, 0.85));
         draw_rectangle(0.0, bar_y, sw * (t / timeline.dur), 3.0, style::ACCENT);
         for (st, _) in &movie.sections {
-            draw_rectangle(sw * (st / timeline.dur) - 1.0, bar_y, 2.0, 8.0, style::PAPER);
+            draw_rectangle(
+                sw * (st / timeline.dur) - 1.0,
+                bar_y,
+                2.0,
+                8.0,
+                style::PAPER,
+            );
         }
         let frame_no = (t * opts.fps as f32).round() as u32;
         let hud = format!(

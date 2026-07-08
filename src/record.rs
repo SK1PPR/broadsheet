@@ -101,7 +101,12 @@ impl Recorder {
         } else {
             Sink::Png
         };
-        Ok(Recorder { dir, fps, frame: 0, sink })
+        Ok(Recorder {
+            dir,
+            fps,
+            frame: 0,
+            sink,
+        })
     }
 
     /// Consume one rendered frame.
