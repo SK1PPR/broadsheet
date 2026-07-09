@@ -38,7 +38,25 @@ pure function of `t`.
 - [x] **Paper-grain shader pass** — `--grain` applies a subtle grain/vignette
       post-process in live preview and recordings.
 
-See `examples/features_demo.rs` for a compact tour of the implemented toolkit.
+Shipped in 0.3.0:
+
+- [x] **Custom themes** — `Theme` token set (palette, masthead, role colors)
+      with `broadsheet`/`midnight`/`plain` presets, set via `m.set_theme(...)`.
+- [x] **Semantic roles** — `Role::{Active, Visited, Skipped, Found, Stale,
+      Deleted, Maybe, Absent}` mapped to colors per theme; `.role(...)` on the
+      scene builder, `m.role(...)` for verbs.
+- [x] **Slideshow mode** — `m.slide("name")` boundaries + `--slideshow`:
+      pause at each boundary, `Space`/`→` animates to the next, `←` goes back.
+      Slides also land in `markers.json`.
+- [x] **Data-structure widgets** — `widgets::{array, bit_array, hash_table,
+      linked_list, tree, graph, hash_ring, lsm_levels, skip_list}` declare a
+      whole structure and return id handles.
+- [x] **More layouts** — `layout::levels` (skip lists / LSM / hierarchies),
+      `layout::blocks` (pages/chunks), `layout::graph` (deterministic seeded
+      spring layout), `layout::rng` (splitmix64, repeatable jitter).
+
+See `examples/features_demo.rs` for a compact tour of the core toolkit and
+`examples/slideshow_demo.rs` for themes, roles, widgets, and slides.
 
 ## Smaller polish still worth doing
 
@@ -46,6 +64,11 @@ See `examples/features_demo.rs` for a compact tour of the implemented toolkit.
       always writing `still_S.png`.
 - [ ] **Golden-frame tests for implemented features** — render a few fixed
       frames from `features_demo` and compare hashes to guard the renderer.
+
+- [ ] **State diff transitions** — snapshot declared entity state, mutate,
+      emit move/fade/retarget clips automatically (deferred from 0.3.0).
+- [ ] **Ghost/previous-state overlays** — faded copy of the pre-transition
+      state for before/after comparisons.
 
 ## Bigger swings (later)
 

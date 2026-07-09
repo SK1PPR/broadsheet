@@ -132,10 +132,15 @@ impl Recorder {
         self.frame
     }
 
-    /// Close the sink and write `markers.json` (sections + beat marks) for
-    /// narration alignment in the editor.
-    pub fn finish(mut self, sections: &[(f32, String)], marks: &[(f32, String)]) {
-        let markers = markers_json(self.fps, sections, marks);
+    /// Close the sink and write `markers.json` (sections + beat marks +
+    /// slide boundaries) for narration alignment in the editor.
+    pub fn finish(
+        mut self,
+        sections: &[(f32, String)],
+        marks: &[(f32, String)],
+        slides: &[(f32, String)],
+    ) {
+        let markers = markers_json(self.fps, sections, marks, slides);
         let _ = std::fs::write(self.dir.join("markers.json"), markers);
 
         match &mut self.sink {
@@ -167,7 +172,12 @@ impl Recorder {
     }
 }
 
-fn markers_json(fps: u32, sections: &[(f32, String)], marks: &[(f32, String)]) -> String {
+fn markers_json(
+    fps: u32,
+    sections: &[(f32, String)],
+    marks: &[(f32, String)],
+    slides: &[(f32, String)],
+) -> String {
     fn list(items: &[(f32, String)]) -> String {
         items
             .iter()
@@ -176,8 +186,9 @@ fn markers_json(fps: u32, sections: &[(f32, String)], marks: &[(f32, String)]) -
             .join(",\n")
     }
     format!(
-        "{{\n  \"fps\": {fps},\n  \"sections\": [\n{}\n  ],\n  \"marks\": [\n{}\n  ]\n}}\n",
+        "{{\n  \"fps\": {fps},\n  \"sections\": [\n{}\n  ],\n  \"marks\": [\n{}\n  ],\n  \"slides\": [\n{}\n  ]\n}}\n",
         list(sections),
-        list(marks)
+        list(marks),
+        list(slides)
     )
 }

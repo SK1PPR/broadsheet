@@ -389,8 +389,15 @@ pub fn draw_scene(scene: &Scene, fonts: &Fonts, view: &View) {
 /// The newspaper page chrome drawn under every frame: double border,
 /// masthead title, dateline rules. It lives in world coordinates, so camera
 /// moves treat it as part of the page rather than as sticky UI.
-pub fn draw_page_chrome(title: &str, w: f32, h: f32, fonts: &Fonts, view: &View) {
-    clear_background(style::PAPER);
+pub fn draw_page_chrome(
+    title: &str,
+    w: f32,
+    h: f32,
+    fonts: &Fonts,
+    view: &View,
+    theme: &style::Theme,
+) {
+    clear_background(theme.paper);
     let k = view.k();
     let rect = |x: f32, y: f32, rw: f32, rh: f32, width: f32, color: Color| {
         let p = view.xform(Vec2::new(x, y));
@@ -402,8 +409,8 @@ pub fn draw_page_chrome(title: &str, w: f32, h: f32, fonts: &Fonts, view: &View)
         draw_line(a.x, a.y, b.x, b.y, width * k, color);
     };
 
-    rect(16.0, 16.0, w - 32.0, h - 32.0, 3.0, style::INK);
-    rect(24.0, 24.0, w - 48.0, h - 48.0, 1.0, style::FADED);
+    rect(16.0, 16.0, w - 32.0, h - 32.0, 3.0, theme.ink);
+    rect(24.0, 24.0, w - 48.0, h - 48.0, 1.0, theme.faded);
 
     let title_upper = title.to_uppercase();
     draw_text_block(
@@ -411,7 +418,7 @@ pub fn draw_page_chrome(title: &str, w: f32, h: f32, fonts: &Fonts, view: &View)
         view.xform(Vec2::new(w / 2.0, 58.0)),
         40.0 * k,
         40.0 * view.ss,
-        style::INK,
+        theme.ink,
         fonts.serif.as_ref(),
         0.0,
         None,
@@ -423,7 +430,7 @@ pub fn draw_page_chrome(title: &str, w: f32, h: f32, fonts: &Fonts, view: &View)
         let fscale = 14.0 * k / fs as f32;
         let left = view.xform(Vec2::new(44.0, 62.0));
         draw_text_ex(
-            style::MASTHEAD_LEFT,
+            &theme.masthead_left,
             left.x,
             left.y,
             TextParams {
@@ -432,13 +439,13 @@ pub fn draw_page_chrome(title: &str, w: f32, h: f32, fonts: &Fonts, view: &View)
                 font_scale: fscale,
                 font_scale_aspect: 1.0,
                 rotation: 0.0,
-                color: style::FADED,
+                color: theme.faded,
             },
         );
-        let rdims = measure_text(style::MASTHEAD_RIGHT, Some(mono), fs, fscale);
+        let rdims = measure_text(&theme.masthead_right, Some(mono), fs, fscale);
         let right = view.xform(Vec2::new(w - 44.0, 62.0));
         draw_text_ex(
-            style::MASTHEAD_RIGHT,
+            &theme.masthead_right,
             right.x - rdims.width,
             right.y,
             TextParams {
@@ -447,7 +454,7 @@ pub fn draw_page_chrome(title: &str, w: f32, h: f32, fonts: &Fonts, view: &View)
                 font_scale: fscale,
                 font_scale_aspect: 1.0,
                 rotation: 0.0,
-                color: style::FADED,
+                color: theme.faded,
             },
         );
     }
@@ -456,12 +463,12 @@ pub fn draw_page_chrome(title: &str, w: f32, h: f32, fonts: &Fonts, view: &View)
         Vec2::new(40.0, 88.0),
         Vec2::new(w - 40.0, 88.0),
         2.5,
-        style::INK,
+        theme.ink,
     );
     line(
         Vec2::new(40.0, 93.0),
         Vec2::new(w - 40.0, 93.0),
         1.0,
-        style::INK,
+        theme.ink,
     );
 }

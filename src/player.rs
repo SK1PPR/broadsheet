@@ -21,6 +21,8 @@
 //! - `--png`           force PNG sequence instead of the ffmpeg pipe
 //! - `--gif`           pipe frames into out.gif instead of out.mp4
 //! - `--grain`         newsprint grain + vignette post-process
+//! - `--slideshow`     present live: pause at every `m.slide(..)` boundary,
+//!   `Space`/`→` animates to the next slide, `←` snaps back one
 
 use macroquad::prelude::*;
 
@@ -123,6 +125,9 @@ pub(crate) struct Opts {
     pub grain: bool,
     /// Opaque paper background with no page chrome (web embedding).
     pub bare: bool,
+    /// Present as a slideshow: pause at every [`Movie::slide`] boundary,
+    /// `Space`/`→` plays forward to the next one.
+    pub slideshow: bool,
 }
 
 pub(crate) fn parse_opts() -> Opts {
@@ -140,6 +145,7 @@ pub(crate) fn parse_opts() -> Opts {
         gif: false,
         grain: false,
         bare: false,
+        slideshow: false,
     };
     let mut i = 1;
     let value = |args: &[String], i: usize, flag: &str| -> String {
@@ -193,6 +199,7 @@ pub(crate) fn parse_opts() -> Opts {
             "--png" => opts.png = true,
             "--gif" => opts.gif = true,
             "--grain" => opts.grain = true,
+            "--slideshow" => opts.slideshow = true,
             _ => {}
         }
         i += 1;
@@ -245,6 +252,7 @@ fn fullscreen_pressed() -> bool {
 
 pub async fn run_loop(movie: Movie) {
     let fonts = Fonts::load();
+    let theme = movie.theme.clone();
     let (base, timeline) = movie.finalize();
     #[allow(unused_mut)]
     let mut opts = parse_opts();
@@ -301,9 +309,9 @@ pub async fn run_loop(movie: Movie) {
         } else if opts.bare {
             // web: paper background only, no masthead/border — the surrounding
             // page supplies the chrome, so the canvas blends into the article
-            clear_background(style::PAPER);
+            clear_background(theme.paper);
         } else {
-            render::draw_page_chrome(&movie.title, w, h, &fonts, &view);
+            render::draw_page_chrome(&movie.title, w, h, &fonts, &view, &theme);
         }
         render::draw_scene(&scene, &fonts, &view);
     };
@@ -371,7 +379,7 @@ pub async fn run_loop(movie: Movie) {
             rec.capture(&img);
             next_frame().await;
         }
-        rec.finish(&movie.sections, &movie.marks);
+        rec.finish(&movie.sections, &movie.marks, &movie.slides);
         std::process::exit(0);
     }
 
@@ -382,11 +390,19 @@ pub async fn run_loop(movie: Movie) {
     }
 
     // ---- live preview ----
-    let mut t: f32 = 0.0;
+    // slideshow: pause on every slide boundary, Space/→ plays to the next
+    let slide_times: Vec<f32> = movie.slides.iter().map(|(st, _)| *st).collect();
+    let slideshow = opts.slideshow && !slide_times.is_empty();
+    if opts.slideshow && slide_times.is_empty() {
+        eprintln!("--slideshow: movie has no slides (add m.slide(\"name\") boundaries)");
+    }
+    let mut play_until: Option<f32> = None;
+    let mut t: f32 = if slideshow { slide_times[0] } else { 0.0 };
     // web builds start paused; the host page drives playback
-    let mut paused = cfg!(target_arch = "wasm32");
+    let mut paused = cfg!(target_arch = "wasm32") || slideshow;
     let mut fullscreen = false;
     let frame_dt = 1.0 / opts.fps as f32;
+    const SLIDE_EPS: f32 = 1e-3;
 
     loop {
         // page-driven controls: the atomics are authoritative at frame start,
@@ -404,16 +420,35 @@ pub async fn run_loop(movie: Movie) {
             fullscreen = !fullscreen;
             set_fullscreen(fullscreen);
         }
-        if is_key_pressed(KeyCode::Space) {
-            paused = !paused;
-        }
-        if is_key_pressed(KeyCode::Right) {
-            paused = true;
-            t += frame_dt;
-        }
-        if is_key_pressed(KeyCode::Left) {
-            paused = true;
-            t -= frame_dt;
+        if slideshow {
+            // Space/→ animate forward to the next boundary; ← snaps back one
+            if is_key_pressed(KeyCode::Space) || is_key_pressed(KeyCode::Right) {
+                let next = slide_times.iter().copied().find(|&s| s > t + SLIDE_EPS);
+                play_until = Some(next.unwrap_or(timeline.dur));
+                paused = false;
+            }
+            if is_key_pressed(KeyCode::Left) {
+                t = slide_times
+                    .iter()
+                    .rev()
+                    .copied()
+                    .find(|&s| s < t - SLIDE_EPS)
+                    .unwrap_or(slide_times[0]);
+                paused = true;
+                play_until = None;
+            }
+        } else {
+            if is_key_pressed(KeyCode::Space) {
+                paused = !paused;
+            }
+            if is_key_pressed(KeyCode::Right) {
+                paused = true;
+                t += frame_dt;
+            }
+            if is_key_pressed(KeyCode::Left) {
+                paused = true;
+                t -= frame_dt;
+            }
         }
         if is_key_pressed(KeyCode::Period) {
             t += 1.0;
@@ -422,7 +457,11 @@ pub async fn run_loop(movie: Movie) {
             t -= 1.0;
         }
         if is_key_pressed(KeyCode::R) {
-            t = 0.0;
+            t = if slideshow { slide_times[0] } else { 0.0 };
+            if slideshow {
+                paused = true;
+                play_until = None;
+            }
         }
         let digits = [
             KeyCode::Key1,
@@ -448,6 +487,7 @@ pub async fn run_loop(movie: Movie) {
         let (mx, my) = mouse_position();
         if is_mouse_button_down(MouseButton::Left) && my >= bar_y {
             paused = true;
+            play_until = None;
             t = (mx / sw).clamp(0.0, 1.0) * timeline.dur;
         }
 
@@ -456,6 +496,13 @@ pub async fn run_loop(movie: Movie) {
 
         if !paused {
             t += get_frame_time();
+        }
+        if let Some(pu) = play_until {
+            if t >= pu {
+                t = pu;
+                paused = true;
+                play_until = None;
+            }
         }
         t = t.clamp(0.0, timeline.dur);
 
@@ -468,9 +515,9 @@ pub async fn run_loop(movie: Movie) {
         set_default_camera();
         // web: paper letterbox so bars match the page; native: ink bars
         #[cfg(target_arch = "wasm32")]
-        clear_background(style::PAPER);
+        clear_background(theme.paper);
         #[cfg(not(target_arch = "wasm32"))]
-        clear_background(style::INK);
+        clear_background(theme.ink);
         let fit = (sw / pw).min(sh / ph);
         let (dw, dh) = (pw * fit, ph * fit);
         let (dx, dy) = ((sw - dw) / 2.0, (sh - dh) / 2.0);
@@ -494,24 +541,35 @@ pub async fn run_loop(movie: Movie) {
         // ---- HUD (never recorded, never on web — the page is the chrome) ----
         #[cfg(not(target_arch = "wasm32"))]
         {
-            draw_rectangle(0.0, bar_y, sw, 26.0, style::with_opacity(style::INK, 0.85));
-            draw_rectangle(0.0, bar_y, sw * (t / timeline.dur), 3.0, style::ACCENT);
+            draw_rectangle(0.0, bar_y, sw, 26.0, style::with_opacity(theme.ink, 0.85));
+            draw_rectangle(0.0, bar_y, sw * (t / timeline.dur), 3.0, theme.accent);
             for (st, _) in &movie.sections {
-                draw_rectangle(
-                    sw * (st / timeline.dur) - 1.0,
-                    bar_y,
-                    2.0,
-                    8.0,
-                    style::PAPER,
-                );
+                draw_rectangle(sw * (st / timeline.dur) - 1.0, bar_y, 2.0, 8.0, theme.paper);
             }
             let frame_no = (t * opts.fps as f32).round() as u32;
-            let hud = format!(
+            let hud = if slideshow {
+                let cur = slide_times
+                    .iter()
+                    .filter(|&&s| s <= t + SLIDE_EPS)
+                    .count()
+                    .max(1);
+                let name = &movie.slides[cur - 1].1;
+                format!(
+                    "{}  slide {}/{} \"{}\"  t={:6.2}s  [space/->] next  [<-] back  [F] fullscreen  [R] restart",
+                    if paused { "PAUSED " } else { "PLAYING" },
+                    cur,
+                    slide_times.len(),
+                    name,
+                    t
+                )
+            } else {
+                format!(
                 "{}  t={:6.2}s  frame={:5}  [space] play/pause  [</>] step  [,/.] +/-1s  [1-9] sections  [F/Ctrl+Cmd+F] fullscreen  [R] restart",
                 if paused { "PAUSED " } else { "PLAYING" },
                 t,
                 frame_no
-            );
+            )
+            };
             draw_text_ex(
                 &hud,
                 10.0,
@@ -522,7 +580,7 @@ pub async fn run_loop(movie: Movie) {
                     font_scale: 1.0,
                     font_scale_aspect: 1.0,
                     rotation: 0.0,
-                    color: style::PAPER,
+                    color: theme.paper,
                 },
             );
         }

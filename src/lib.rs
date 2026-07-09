@@ -45,8 +45,18 @@
 //!   are deterministic.
 //! - [`render`] turns a scene snapshot into macroquad draw calls with the
 //!   built-in broadsheet style from [`style`].
-//! - [`layout`] contains small coordinate helpers for rows, grids, trees, and
-//!   rings.
+//! - [`layout`] contains small coordinate helpers for rows, grids, trees,
+//!   rings, levels, blocks, and seeded graph layouts.
+//! - [`widgets`] declares whole data structures (arrays, linked lists, trees,
+//!   graphs, hash rings, LSM levels, skip lists) in one call and returns id
+//!   handles for animating them.
+//! - [`style::Theme`] swaps the palette (`broadsheet`, `midnight`, `plain`,
+//!   or custom) via [`movie::Movie::set_theme`]; [`style::Role`] names
+//!   semantic algorithm states (`Active`, `Found`, …) that themes map to
+//!   colors.
+//! - `Movie::slide(name)` drops slide boundaries; run with `--slideshow` to
+//!   present them like a deck — playback pauses at each boundary and
+//!   `Space`/`→` animates to the next.
 //!
 //! ## Recording
 //!
@@ -71,6 +81,7 @@ pub mod render;
 pub mod scene;
 pub mod style;
 pub mod timeline;
+pub mod widgets;
 
 use macroquad::prelude::Vec2;
 
@@ -114,9 +125,10 @@ pub mod prelude {
     pub use crate::easing::Easing::{self, *};
     pub use crate::layout;
     pub use crate::movie::Movie;
-    pub use crate::style::{ACCENT, BLUE, FADED, INK, PAPER, PAPER_SHADE};
+    pub use crate::style::{Role, Theme, ACCENT, BLUE, FADED, INK, PAPER, PAPER_SHADE};
     pub use crate::timeline::Clip;
     pub use crate::v;
+    pub use crate::widgets;
     pub use crate::{par, seq, stagger};
     pub use macroquad::prelude::{Color, Vec2};
 }

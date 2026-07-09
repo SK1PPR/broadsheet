@@ -7,10 +7,12 @@
 
 use macroquad::prelude::Vec2;
 
+use macroquad::prelude::Color;
+
 use crate::animate::{act, ActBuilder};
 use crate::primitives::{Entity, Shape};
 use crate::scene::{Scene, SceneBuilder};
-use crate::style;
+use crate::style::{self, Role, Theme};
 use crate::timeline::{Clip, TextEvent, Timeline, TrackSpec};
 
 /// Reserved id of the animatable camera entity every movie carries.
@@ -31,6 +33,12 @@ pub struct Movie {
     /// Named beat markers from [`Movie::mark`], exported to `markers.json`
     /// alongside recordings for narration alignment.
     pub marks: Vec<(f32, String)>,
+    /// Slide boundaries from [`Movie::slide`]. In `--slideshow` mode the
+    /// player pauses at each one and `Space`/`→` plays to the next.
+    pub slides: Vec<(f32, String)>,
+    /// Visual token set every frame is drawn from. Change it with
+    /// [`Movie::set_theme`] before declaring entities.
+    pub theme: Theme,
     section_n: usize,
 }
 
@@ -56,13 +64,28 @@ impl Movie {
             cursor: 0.0,
             sections: Vec::new(),
             marks: Vec::new(),
+            slides: Vec::new(),
+            theme: Theme::default(),
             section_n: 0,
         }
     }
 
+    /// Swap the visual theme (palette, masthead, role colors). Call this
+    /// **before** declaring entities: shape defaults (fills, outlines, index
+    /// digits) are baked in at declaration time.
+    pub fn set_theme(&mut self, theme: Theme) {
+        self.theme = theme;
+    }
+
+    /// Color the current theme assigns to a semantic [`Role`]:
+    /// `act().highlight("n3", m.role(Role::Found))`.
+    pub fn role(&self, r: Role) -> Color {
+        self.theme.role(r)
+    }
+
     /// Declare entities (the world at t = 0). Call as many times as you like.
     pub fn scene(&mut self) -> SceneBuilder<'_> {
-        SceneBuilder::new(&mut self.scene)
+        SceneBuilder::new(&mut self.scene, self.theme.clone())
     }
 
     /// Start describing an animation act (same as the free [`act()`]).
@@ -100,6 +123,15 @@ impl Movie {
         self.marks.push((self.cursor, name.to_string()));
     }
 
+    /// Drop a slide boundary at the cursor. Run the player with
+    /// `--slideshow` to present: playback pauses at every boundary and
+    /// `Space`/`→` animates forward to the next one — states in between
+    /// become the "transitions" of the deck. Boundaries also land in
+    /// `markers.json`.
+    pub fn slide(&mut self, name: &str) {
+        self.slides.push((self.cursor, name.to_string()));
+    }
+
     /// Ids of all entities carrying `tag`. Pair with [`crate::animate::all`]:
     /// `m.play(all(&m.tagged("bits"), |id| act().fade_out(id)))`.
     pub fn tagged(&self, tag: &str) -> Vec<String> {
@@ -124,19 +156,25 @@ impl Movie {
         let rule_id = format!("__section{n}.rule");
         let kicker_id = format!("__section{n}.kicker");
         let bg_id = format!("__section{n}.bg");
+        let (paper, ink, accent, faded) = (
+            self.theme.paper,
+            self.theme.ink,
+            self.theme.accent,
+            self.theme.faded,
+        );
         {
             let mut s = self.scene();
             // backdrop keeps the card legible over a busy stage
             s.rect(&bg_id, Vec2::new(cx, cy - 10.0), 800.0, 230.0)
-                .color(style::PAPER)
-                .outline_color(style::INK)
+                .color(paper)
+                .outline_color(ink)
                 .stroke(1.5)
                 .z(88)
                 .hidden();
             s.text(&head_id, Vec2::new(cx, cy - 10.0), title)
                 .serif()
                 .size(58.0)
-                .color(style::INK)
+                .color(ink)
                 .z(90)
                 .hidden();
             s.line(
@@ -144,13 +182,13 @@ impl Movie {
                 Vec2::new(cx - 130.0, cy + 34.0),
                 Vec2::new(cx + 130.0, cy + 34.0),
             )
-            .color(style::ACCENT)
+            .color(accent)
             .stroke(3.0)
             .z(90)
             .hidden();
             s.text(&kicker_id, Vec2::new(cx, cy - 62.0), &format!("§ {n}"))
                 .size(20.0)
-                .color(style::FADED)
+                .color(faded)
                 .z(90)
                 .hidden();
         }

@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use macroquad::prelude::{Color, Vec2};
 
 use crate::primitives::{Align, Entity, FontKind, Shape, StrokeStyle};
-use crate::style;
+use crate::style::{Role, Theme};
 
 /// An id-addressed collection of entities. This is the *base* state of the
 /// world at t = 0; the timeline produces per-frame copies of it.
@@ -62,12 +62,17 @@ impl Scene {
 /// ```
 pub struct SceneBuilder<'a> {
     scene: &'a mut Scene,
+    theme: Theme,
     last: Option<usize>,
 }
 
 impl<'a> SceneBuilder<'a> {
-    pub(crate) fn new(scene: &'a mut Scene) -> Self {
-        SceneBuilder { scene, last: None }
+    pub(crate) fn new(scene: &'a mut Scene, theme: Theme) -> Self {
+        SceneBuilder {
+            scene,
+            theme,
+            last: None,
+        }
     }
 
     fn push(&mut self, e: Entity) -> &mut Self {
@@ -87,11 +92,11 @@ impl<'a> SceneBuilder<'a> {
     /// Circle centred at `pos` with radius `r`. Ink-outlined, paper-filled by
     /// default (the house style for nodes).
     pub fn circle(&mut self, id: &str, pos: Vec2, r: f32) -> &mut Self {
-        let mut e = Entity::new(id, Shape::Circle { r }, pos, style::PAPER);
+        let mut e = Entity::new(id, Shape::Circle { r }, pos, self.theme.paper);
         e.stroke = StrokeStyle {
             fill: true,
             outline: true,
-            outline_color: Some(style::INK),
+            outline_color: Some(self.theme.ink),
             ..Default::default()
         };
         self.push(e)
@@ -99,11 +104,11 @@ impl<'a> SceneBuilder<'a> {
 
     /// Rectangle centred at `pos`. Same default styling as `circle`.
     pub fn rect(&mut self, id: &str, pos: Vec2, w: f32, h: f32) -> &mut Self {
-        let mut e = Entity::new(id, Shape::Rect { w, h }, pos, style::PAPER);
+        let mut e = Entity::new(id, Shape::Rect { w, h }, pos, self.theme.paper);
         e.stroke = StrokeStyle {
             fill: true,
             outline: true,
-            outline_color: Some(style::INK),
+            outline_color: Some(self.theme.ink),
             ..Default::default()
         };
         self.push(e)
@@ -111,12 +116,12 @@ impl<'a> SceneBuilder<'a> {
 
     /// Line from `from` to `to` (absolute coordinates).
     pub fn line(&mut self, id: &str, from: Vec2, to: Vec2) -> &mut Self {
-        self.push(Entity::new(id, Shape::Line { to }, from, style::INK))
+        self.push(Entity::new(id, Shape::Line { to }, from, self.theme.ink))
     }
 
     /// Arrow from `from` to `to`, head at `to`.
     pub fn arrow(&mut self, id: &str, from: Vec2, to: Vec2) -> &mut Self {
-        self.push(Entity::new(id, Shape::Arrow { to }, from, style::INK))
+        self.push(Entity::new(id, Shape::Arrow { to }, from, self.theme.ink))
     }
 
     /// Quadratic bézier from `from` to `to`, bowing sideways by `bend`
@@ -135,7 +140,7 @@ impl<'a> SceneBuilder<'a> {
                 arrow: false,
             },
             from,
-            style::INK,
+            self.theme.ink,
         ))
     }
 
@@ -150,11 +155,11 @@ impl<'a> SceneBuilder<'a> {
 
     /// Polygon with absolute points. Animate its `pos` to move it as a unit.
     pub fn polygon(&mut self, id: &str, pts: Vec<Vec2>) -> &mut Self {
-        let mut e = Entity::new(id, Shape::Polygon { pts }, Vec2::ZERO, style::PAPER);
+        let mut e = Entity::new(id, Shape::Polygon { pts }, Vec2::ZERO, self.theme.paper);
         e.stroke = StrokeStyle {
             fill: true,
             outline: true,
-            outline_color: Some(style::INK),
+            outline_color: Some(self.theme.ink),
             ..Default::default()
         };
         self.push(e)
@@ -169,7 +174,7 @@ impl<'a> SceneBuilder<'a> {
                 size: 28.0,
             },
             pos,
-            style::INK,
+            self.theme.ink,
         ))
     }
 
@@ -186,20 +191,21 @@ impl<'a> SceneBuilder<'a> {
         gap: f32,
         labels: Option<&[&str]>,
     ) -> &mut Self {
+        let (shade, ink, faded) = (self.theme.paper_shade, self.theme.ink, self.theme.faded);
         let stride = cell.x + gap;
         let x0 = center.x - stride * (n as f32 - 1.0) / 2.0;
         for i in 0..n {
             let id = format!("{prefix}{i}");
             let pos = Vec2::new(x0 + stride * i as f32, center.y);
             self.rect(&id, pos, cell.x, cell.y)
-                .color(style::PAPER_SHADE)
-                .outline_color(style::INK)
+                .color(shade)
+                .outline_color(ink)
                 .stroke(2.0)
                 .tag(prefix)
                 .label(labels.map_or("", |l| l[i]));
             self.text(&format!("{id}.idx"), Vec2::ZERO, &i.to_string())
                 .size(14.0)
-                .color(style::FADED)
+                .color(faded)
                 .follow(&id, Vec2::new(0.0, cell.y / 2.0 + 20.0));
         }
         self
@@ -229,6 +235,12 @@ impl<'a> SceneBuilder<'a> {
     pub fn color(&mut self, c: Color) -> &mut Self {
         self.last_mut().color = c;
         self
+    }
+
+    /// Set the primary color from a semantic [`Role`] via the active theme.
+    pub fn role(&mut self, r: Role) -> &mut Self {
+        let c = self.theme.role(r);
+        self.color(c)
     }
 
     /// Outline only: no fill, ink-colored stroke unless overridden.
@@ -358,7 +370,7 @@ impl<'a> SceneBuilder<'a> {
                 size: 24.0,
             },
             Vec2::ZERO,
-            style::INK,
+            self.theme.ink,
         );
         lbl.font = FontKind::MonoBold;
         lbl.z = parent_z + 1;

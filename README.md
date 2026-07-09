@@ -5,7 +5,9 @@ Rust on [macroquad]. Newspaper-styled, deterministic, code-driven.
 
 Every render looks like a page from the same broadsheet: off-white paper,
 ink strokes, one spot color, serif headlines, mono data. The visual identity
-is defined once in `src/style.rs`.
+is defined once in `src/style.rs` — and since 0.3.0 it is swappable: pick
+`Theme::broadsheet()` (default), `Theme::midnight()`, `Theme::plain()`, or
+build your own with `m.set_theme(...)`.
 
 [macroquad]: https://github.com/not-fl3/macroquad
 
@@ -14,6 +16,7 @@ is defined once in `src/style.rs`.
 ```sh
 cargo run --example features_demo    # live preview window
 cargo run --example lsm_tree
+cargo run --example slideshow_demo -- --slideshow   # present like a deck
 ```
 
 Live transport controls (for lining narration up with beats):
@@ -29,6 +32,14 @@ Live transport controls (for lining narration up with beats):
 | drag bottom bar | scrub |
 
 The HUD shows exact `t` and frame number; it is never present in recordings.
+
+### Slideshow mode
+
+Drop boundaries in the script with `m.slide("name")`, then run with
+`-- --slideshow`: playback pauses at every boundary, `Space`/`→` animates
+forward to the next slide, `←` snaps back one. The states between
+boundaries become the deck's transitions — ideal for narrating a video live
+or presenting. Slide times are also written to `markers.json`.
 
 ## Record a video
 
@@ -106,7 +117,35 @@ exports a beat marker to `markers.json` during recording; `.sticky()` keeps
 an entity in screen coordinates during camera pan/zoom for HUD-style overlays.
 
 Palette: `INK`, `PAPER`, `ACCENT` (newsprint red), `BLUE`, `FADED`,
-`PAPER_SHADE`.
+`PAPER_SHADE` (the default `Theme::broadsheet()` values).
+
+## Themes & roles
+
+`m.set_theme(Theme::midnight())` swaps the whole token set — page color,
+ink, spot colors, masthead strings — before entities are declared. Semantic
+`Role`s (`Active`, `Visited`, `Skipped`, `Found`, `Stale`, `Deleted`,
+`Maybe`, `Absent`) name algorithm states; each theme maps them to colors:
+
+```rust,ignore
+m.scene().circle("n", v(500., 300.), 26.).role(Role::Visited);
+m.play(act().color_to("n", m.role(Role::Found)));
+```
+
+## Widgets
+
+One call declares a whole data structure and returns a handle with its
+entity ids (`broadsheet::widgets`): `array`, `bit_array`, `hash_table`,
+`linked_list`, `tree`, `graph` (deterministic seeded spring layout),
+`hash_ring`, `lsm_levels`, `skip_list`.
+
+```rust,ignore
+let arr = widgets::array(&mut m, "arr", &["4", "8", "15"], v(640., 320.));
+m.play(act().highlight(&arr.cell(1), m.role(Role::Active)));
+```
+
+Layout helpers (`broadsheet::layout`): `row`, `grid`, `ring`, `tree`,
+`levels`, `blocks`, `graph`, plus `rng(seed)` for repeatable jitter.
+See `examples/slideshow_demo.rs` for the full tour.
 
 ## Extending it
 
