@@ -36,12 +36,52 @@ use crate::style::{self, Fonts};
 #[cfg(target_arch = "wasm32")]
 mod web {
     use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+    use std::sync::Mutex;
 
     // f32s smuggled through AtomicU32 bit patterns; NaN = "no seek pending".
     pub static SEEK_BITS: AtomicU32 = AtomicU32::new(u32::MAX);
     pub static TIME_BITS: AtomicU32 = AtomicU32::new(0);
     pub static DUR_BITS: AtomicU32 = AtomicU32::new(0);
     pub static PAUSED: AtomicBool = AtomicBool::new(true);
+
+    /// The movie's named beat markers, published so the host page can read
+    /// them without a bundled markers.json. Strings cross the wasm boundary
+    /// a byte at a time (`bs_mark_name_len` + `bs_mark_name_byte`) — clunky,
+    /// but it runs once at load and needs no bindgen or allocator handshake.
+    pub static MARKS: Mutex<Vec<(f32, String)>> = Mutex::new(Vec::new());
+
+    #[no_mangle]
+    pub extern "C" fn bs_mark_count() -> u32 {
+        MARKS.lock().unwrap().len() as u32
+    }
+
+    #[no_mangle]
+    pub extern "C" fn bs_mark_time(i: u32) -> f32 {
+        MARKS
+            .lock()
+            .unwrap()
+            .get(i as usize)
+            .map_or(f32::NAN, |(t, _)| *t)
+    }
+
+    #[no_mangle]
+    pub extern "C" fn bs_mark_name_len(i: u32) -> u32 {
+        MARKS
+            .lock()
+            .unwrap()
+            .get(i as usize)
+            .map_or(0, |(_, n)| n.len() as u32)
+    }
+
+    #[no_mangle]
+    pub extern "C" fn bs_mark_name_byte(i: u32, j: u32) -> u32 {
+        MARKS
+            .lock()
+            .unwrap()
+            .get(i as usize)
+            .and_then(|(_, n)| n.as_bytes().get(j as usize).copied())
+            .map_or(0, u32::from)
+    }
 
     pub fn take_seek() -> Option<f32> {
         let t = f32::from_bits(SEEK_BITS.swap(u32::MAX, Ordering::Relaxed));
@@ -336,7 +376,10 @@ pub async fn run_loop(movie: Movie) {
     }
 
     #[cfg(target_arch = "wasm32")]
-    web::DUR_BITS.store(timeline.dur.to_bits(), std::sync::atomic::Ordering::Relaxed);
+    {
+        web::DUR_BITS.store(timeline.dur.to_bits(), std::sync::atomic::Ordering::Relaxed);
+        *web::MARKS.lock().unwrap() = movie.marks.clone();
+    }
 
     // ---- live preview ----
     let mut t: f32 = 0.0;
