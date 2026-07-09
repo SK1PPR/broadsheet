@@ -1,11 +1,11 @@
 # Graph Report - .  (2026-07-09)
 
 ## Corpus Check
-- 19 files · ~25,396 words
+- 20 files · ~39,243 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 277 nodes · 424 edges · 21 communities detected
+- 279 nodes · 425 edges · 22 communities detected
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
 - Token cost: 0 input · 0 output
 
@@ -31,6 +31,7 @@
 - [[_COMMUNITY_Community 18|Community 18]]
 - [[_COMMUNITY_Community 19|Community 19]]
 - [[_COMMUNITY_Community 20|Community 20]]
+- [[_COMMUNITY_Community 21|Community 21]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `SceneBuilder<'a>` - 33 edges
@@ -133,10 +134,16 @@ Nodes (0):
 Cohesion: 1.0
 Nodes (0): 
 
+### Community 21 - "Community 21"
+Cohesion: 1.0
+Nodes (0): 
+
 ## Knowledge Gaps
 - **15 isolated node(s):** `Extract a beat map from an audio file -> beats.json.  Usage: python3 beatmap.py`, `SceneBuilder`, `Shape`, `Align`, `FontKind` (+10 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **Thin community `Community 20`** (2 nodes): `features_demo.rs`, `main()`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 21`** (2 nodes): `hello.rs`, `main()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 
 ## Suggested Questions

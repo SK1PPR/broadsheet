@@ -1,7 +1,14 @@
 # broadsheet
 
+[![crates.io](https://img.shields.io/crates/v/broadsheet.svg)](https://crates.io/crates/broadsheet)
+[![docs.rs](https://img.shields.io/docsrs/broadsheet)](https://docs.rs/broadsheet)
+[![CI](https://github.com/SK1PPR/broadsheet/actions/workflows/ci.yml/badge.svg)](https://github.com/SK1PPR/broadsheet/actions/workflows/ci.yml)
+[![license](https://img.shields.io/crates/l/broadsheet.svg)](LICENSE)
+
 A 2D animation engine for algorithm & data-structure explainer videos, in
 Rust on [macroquad]. Newspaper-styled, deterministic, code-driven.
+
+![widget tour](https://raw.githubusercontent.com/SK1PPR/broadsheet/main/assets/readme/tour.gif)
 
 Every render looks like a page from the same broadsheet: off-white paper,
 ink strokes, one spot color, serif headlines, mono data. The visual identity
@@ -9,7 +16,22 @@ is defined once in `src/style.rs` — and since 0.3.0 it is swappable: pick
 `Theme::broadsheet()` (default), `Theme::midnight()`, `Theme::plain()`, or
 build your own with `m.set_theme(...)`.
 
+| `broadsheet()` | `midnight()` | `plain()` |
+|---|---|---|
+| ![broadsheet theme](https://raw.githubusercontent.com/SK1PPR/broadsheet/main/assets/readme/theme_broadsheet.png) | ![midnight theme](https://raw.githubusercontent.com/SK1PPR/broadsheet/main/assets/readme/theme_midnight.png) | ![plain theme](https://raw.githubusercontent.com/SK1PPR/broadsheet/main/assets/readme/theme_plain.png) |
+
 [macroquad]: https://github.com/not-fl3/macroquad
+
+## Getting started
+
+```sh
+cargo add broadsheet
+```
+
+Copy [`examples/hello.rs`](examples/hello.rs) into your `main.rs` — ~30
+lines that declare an array widget, animate a max-scan over it, and open a
+live preview window. `ffmpeg` on your `PATH` is the only non-Rust
+dependency, and only for video export.
 
 ## Run the examples
 
@@ -151,4 +173,6 @@ See `examples/slideshow_demo.rs` for the full tour.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) — module map, the statelessness
 invariant, and step-by-step recipes for adding a primitive or a verb
-(the two extension points most movies eventually need).
+(the two extension points most movies eventually need). Contributions
+welcome: [CONTRIBUTING.md](CONTRIBUTING.md). Release history:
+[CHANGELOG.md](CHANGELOG.md).

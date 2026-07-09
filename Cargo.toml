@@ -16,6 +16,8 @@ include = [
     "assets/fonts/*",
     "README.md",
     "ARCHITECTURE.md",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md",
     "LICENSE",
     "LICENSE-FONTS",
 ]

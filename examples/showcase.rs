@@ -564,7 +564,6 @@ fn main() {
                             .dur(bm.spb())
                             .ease(OutCubic),
                     ]
-                    .into()
                 })
                 .collect(),
         ),
@@ -635,8 +634,12 @@ fn main() {
     // schedule directly off the detected beat list, not the grid
     let win_a = b(s4 + 2.0);
     let win_b = b(s4 + 18.0);
-    let mut k = 0usize;
-    for &bt in bm.beats.iter().filter(|&&t| t >= win_a && t < win_b) {
+    for (k, &bt) in bm
+        .beats
+        .iter()
+        .filter(|&&t| t >= win_a && t < win_b)
+        .enumerate()
+    {
         let hot = [k % eq_n, (k * 5 + 2) % eq_n, (k * 7 + 5) % eq_n];
         for (j, i) in hot.iter().enumerate() {
             let up = 1.35 + 0.25 * j as f32;
@@ -655,7 +658,7 @@ fn main() {
             );
         }
         m.at(bt, flash(&format!("eq{}", k % eq_n)).dur(bm.spb() * 0.8));
-        if k % 4 == 0 {
+        if k.is_multiple_of(4) {
             m.at(
                 bt,
                 act()
@@ -663,7 +666,6 @@ fn main() {
                     .dur(bm.spb() * 0.8),
             );
         }
-        k += 1;
     }
 
     let clear_d = s4 + 19.0;
