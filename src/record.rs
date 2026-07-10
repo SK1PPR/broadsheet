@@ -23,6 +23,7 @@ pub struct Recorder {
     pub fps: u32,
     frame: u32,
     sink: Sink,
+    quiet: bool,
 }
 
 fn ffmpeg_available() -> bool {
@@ -45,6 +46,7 @@ impl Recorder {
         h: u32,
         force_png: bool,
         gif: bool,
+        quiet: bool,
     ) -> std::io::Result<Recorder> {
         let dir = dir.into();
         std::fs::create_dir_all(&dir)?;
@@ -106,6 +108,7 @@ impl Recorder {
             fps,
             frame: 0,
             sink,
+            quiet,
         })
     }
 
@@ -148,27 +151,33 @@ impl Recorder {
                 drop(child.stdin.take());
                 match child.wait() {
                     Ok(s) if s.success() => {
-                        println!("{} frames -> {}", self.frame, output.display());
+                        if !self.quiet {
+                            println!("{} frames -> {}", self.frame, output.display());
+                        }
                     }
                     other => eprintln!("ffmpeg exited abnormally: {other:?}"),
                 }
             }
             Sink::Png => {
-                let pattern = self.dir.join("frame_%05d.png");
-                println!("{} frames written to {}/", self.frame, self.dir.display());
-                println!(
-                    "stitch with:\n  ffmpeg -framerate {} -i {} -c:v libx264 -crf 18 -pix_fmt yuv420p {}",
-                    self.fps,
-                    pattern.display(),
-                    self.dir.join("out.mp4").display()
-                );
-                println!(
-                    "  (alpha: -c:v qtrle {} instead)",
-                    self.dir.join("out.mov").display()
-                );
+                if !self.quiet {
+                    let pattern = self.dir.join("frame_%05d.png");
+                    println!("{} frames written to {}/", self.frame, self.dir.display());
+                    println!(
+                        "stitch with:\n  ffmpeg -framerate {} -i {} -c:v libx264 -crf 18 -pix_fmt yuv420p {}",
+                        self.fps,
+                        pattern.display(),
+                        self.dir.join("out.mp4").display()
+                    );
+                    println!(
+                        "  (alpha: -c:v qtrle {} instead)",
+                        self.dir.join("out.mov").display()
+                    );
+                }
             }
         }
-        println!("markers: {}", self.dir.join("markers.json").display());
+        if !self.quiet {
+            println!("markers: {}", self.dir.join("markers.json").display());
+        }
     }
 }
 
