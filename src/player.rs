@@ -21,6 +21,7 @@
 //! - `--png`           force PNG sequence instead of the ffmpeg pipe
 //! - `--gif`           pipe frames into out.gif instead of out.mp4
 //! - `--grain`         newsprint grain + vignette post-process
+//! - `--progress`      visual progress bar during recording (Unicode blocks)
 //! - `--slideshow`     present live: pause at every `m.slide(..)` boundary,
 //!   `Space`/`→` animates to the next slide, `←` snaps back one
 
@@ -128,6 +129,8 @@ pub(crate) struct Opts {
     /// Present as a slideshow: pause at every [`Movie::slide`] boundary,
     /// `Space`/`→` plays forward to the next one.
     pub slideshow: bool,
+    /// Visual progress bar during recording (Unicode blocks on stderr).
+    pub progress: bool,
 }
 
 pub(crate) fn parse_opts() -> Opts {
@@ -146,6 +149,7 @@ pub(crate) fn parse_opts() -> Opts {
         grain: false,
         bare: false,
         slideshow: false,
+        progress: false,
     };
     let mut i = 1;
     let value = |args: &[String], i: usize, flag: &str| -> String {
@@ -200,6 +204,7 @@ pub(crate) fn parse_opts() -> Opts {
             "--gif" => opts.gif = true,
             "--grain" => opts.grain = true,
             "--slideshow" => opts.slideshow = true,
+            "--progress" => opts.progress = true,
             _ => {}
         }
         i += 1;
@@ -248,6 +253,82 @@ fn fullscreen_pressed() -> bool {
     is_key_pressed(KeyCode::F)
         || is_key_pressed(KeyCode::F11)
         || (command_down && control_down && is_key_pressed(KeyCode::F))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+struct ProgressBar {
+    total: u32,
+    start: std::time::Instant,
+    last_update: std::time::Instant,
+    last_drawn: String,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl ProgressBar {
+    fn new(total: u32) -> Self {
+        let now = std::time::Instant::now();
+        Self {
+            total,
+            start: now,
+            last_update: now,
+            last_drawn: String::new(),
+        }
+    }
+
+    fn update(&mut self, frame: u32) {
+        let now = std::time::Instant::now();
+        if frame < self.total && now.duration_since(self.last_update).as_millis() < 50 {
+            return;
+        }
+        self.last_update = now;
+
+        let pct = if self.total > 0 {
+            frame as f64 / self.total as f64
+        } else {
+            1.0
+        };
+        let elapsed = self.start.elapsed().as_secs_f64();
+        let eta = if pct > 0.0 && frame > 0 {
+            elapsed / pct * (1.0 - pct)
+        } else {
+            0.0
+        };
+
+        let width: usize = 30;
+        let filled = (pct * width as f64).round() as usize;
+        let bar: String =
+            "\u{2588}".repeat(filled) + &"\u{2591}".repeat(width.saturating_sub(filled));
+
+        let line = format!(
+            "\r  Rendering [{bar}] {frame}/{total}  {p1}%  {e} / {d}  ETA {eta}",
+            total = self.total,
+            p1 = (pct * 100.0) as u32,
+            e = Self::fmt_dur(elapsed),
+            d = Self::fmt_dur(elapsed / pct.max(0.001)),
+            eta = Self::fmt_dur(eta),
+        );
+        eprint!("{line}");
+        let _ = std::io::Write::flush(&mut std::io::stderr());
+        self.last_drawn = line;
+    }
+
+    fn finish(&self) {
+        if !self.last_drawn.is_empty() {
+            eprintln!();
+        }
+    }
+
+    fn fmt_dur(s: f64) -> String {
+        let total = s as u64;
+        let h = total / 3600;
+        let m = (total % 3600) / 60;
+        let sec = total % 60;
+        if h > 0 {
+            format!("{h}:{m:02}:{sec:02}")
+        } else {
+            format!("{m}:{sec:02}")
+        }
+    }
 }
 
 pub async fn run_loop(movie: Movie) {
@@ -367,17 +448,29 @@ pub async fn run_loop(movie: Movie) {
             ph as u32,
             opts.png || opts.alpha,
             opts.gif,
+            opts.progress,
         )
         .expect("cannot create record dir");
         let end_t = opts.to.unwrap_or(timeline.dur).min(timeline.dur);
         let total = (((end_t - opts.from).max(0.0) * opts.fps as f32).ceil() as u32)
             .min(opts.max_frames.unwrap_or(u32::MAX));
+        let mut progress = if opts.progress {
+            Some(ProgressBar::new(total))
+        } else {
+            None
+        };
         for f in 0..total {
             let t = opts.from + f as f32 / opts.fps as f32;
             render_canvas(t);
             let img = capture(&grain);
             rec.capture(&img);
+            if let Some(bar) = &mut progress {
+                bar.update(f + 1);
+            }
             next_frame().await;
+        }
+        if let Some(bar) = &progress {
+            bar.finish();
         }
         rec.finish(&movie.sections, &movie.marks, &movie.slides);
         std::process::exit(0);
